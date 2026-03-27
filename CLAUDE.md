@@ -42,7 +42,7 @@ npm run tunnel
 
 Episodes flow through 5 sequential steps: **transcribe** (subtitle-first, falls back to faster-whisper large-v3) → **chunk** (PySceneDetect AdaptiveDetector, merge short scenes) → **summarize** (Claude multimodal API generates parent_trigger_phrases, communicative_themes, activity_tags, etc.) → **embed** (dual-vector: retrieval + content embeddings via sentence-transformers) → **extract** (ffmpeg clips + thumbnails).
 
-Pipeline state tracked in `backend/data/pipeline_state.json` — re-running skips completed steps. Each summarization is saved per-scene for idempotency.
+Pipeline state tracked in `backend/data/pipeline_state.json` — re-running skips fully completed episodes (loads cached scenes/summaries from disk) and resumes partially completed episodes at the next incomplete step. The final `scenes.json` and `embeddings.npz` always merge all processed episodes, including previously completed ones not in the current run. Each summarization is saved per-scene for idempotency.
 
 ### Dual-Vector Search (`backend/app/core/search_engine.py`)
 

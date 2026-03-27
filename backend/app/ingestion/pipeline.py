@@ -54,6 +54,25 @@ def get_episode_title(video_path: Path) -> str:
     return title or stem
 
 
+def is_episode_complete(state: dict, episode_id: str) -> bool:
+    """Check if all pipeline steps are complete for an episode."""
+    ep = state.get(episode_id, {})
+    return all(ep.get(step) for step in ("transcribed", "chunked", "summarized", "clipped"))
+
+
+def load_existing_episode(episode_id: str) -> tuple[list[dict], list[dict | None]]:
+    """Load scenes and summaries from disk for an already-processed episode."""
+    scenes_path = settings.scenes_dir / f"{episode_id}.json"
+    summaries_path = settings.summaries_dir / f"{episode_id}.json"
+
+    with open(scenes_path) as f:
+        scenes = json.load(f)
+    with open(summaries_path) as f:
+        summaries = json.load(f)
+
+    return scenes, summaries
+
+
 def process_episode(video_path: Path, state: dict) -> tuple[list[dict], list[dict | None]]:
     """Process a single episode through all pipeline stages."""
     episode_id = get_episode_id(video_path)
@@ -71,33 +90,48 @@ def process_episode(video_path: Path, state: dict) -> tuple[list[dict], list[dic
     ep_state = state[episode_id]
 
     # Step 1: Transcribe
-    print(f"  [1/4] Transcribing {episode_id}...")
-    transcript = transcribe_episode(video_path, episode_id)
-    ep_state["transcribed"] = True
-    save_state(state)
-    source = transcript.get("transcript_source", "unknown")
-    print(f"    Source: {source} ({len(transcript.get('segments', []))} segments)")
+    if not ep_state["transcribed"]:
+        print(f"  [1/4] Transcribing {episode_id}...")
+        transcript = transcribe_episode(video_path, episode_id)
+        ep_state["transcribed"] = True
+        save_state(state)
+        source = transcript.get("transcript_source", "unknown")
+        print(f"    Source: {source} ({len(transcript.get('segments', []))} segments)")
+    else:
+        print(f"  [1/4] Transcription cached")
+        transcript = transcribe_episode(video_path, episode_id)
 
     # Step 2: Chunk
-    print(f"  [2/4] Chunking {episode_id}...")
-    scenes = chunk_episode(video_path, episode_id, transcript)
-    ep_state["chunked"] = True
-    save_state(state)
-    print(f"    {len(scenes)} scenes detected")
+    if not ep_state["chunked"]:
+        print(f"  [2/4] Chunking {episode_id}...")
+        scenes = chunk_episode(video_path, episode_id, transcript)
+        ep_state["chunked"] = True
+        save_state(state)
+        print(f"    {len(scenes)} scenes detected")
+    else:
+        print(f"  [2/4] Chunks cached")
+        scenes = chunk_episode(video_path, episode_id, transcript)
 
     # Step 3: Summarize
-    print(f"  [3/4] Summarizing {episode_id}...")
-    summaries = summarize_episode(video_path, episode_id, episode_title, scenes)
-    ep_state["summarized"] = True
-    save_state(state)
-    valid_summaries = sum(1 for s in summaries if s is not None)
-    print(f"    {valid_summaries} scenes summarized")
+    if not ep_state["summarized"]:
+        print(f"  [3/4] Summarizing {episode_id}...")
+        summaries = summarize_episode(video_path, episode_id, episode_title, scenes)
+        ep_state["summarized"] = True
+        save_state(state)
+        valid_summaries = sum(1 for s in summaries if s is not None)
+        print(f"    {valid_summaries} scenes summarized")
+    else:
+        print(f"  [3/4] Summaries cached")
+        summaries = summarize_episode(video_path, episode_id, episode_title, scenes)
 
     # Step 4: Extract clips
-    print(f"  [4/4] Extracting clips for {episode_id}...")
-    extract_episode_clips(video_path, scenes)
-    ep_state["clipped"] = True
-    save_state(state)
+    if not ep_state["clipped"]:
+        print(f"  [4/4] Extracting clips for {episode_id}...")
+        extract_episode_clips(video_path, scenes)
+        ep_state["clipped"] = True
+        save_state(state)
+    else:
+        print(f"  [4/4] Clips cached")
 
     return scenes, summaries
 
@@ -148,13 +182,30 @@ def run_pipeline(episode_paths: list[Path]) -> None:
     all_scenes: list[dict] = []
     all_summaries: list[dict | None] = []
 
+    # Collect episode IDs we're processing in this run
+    run_episode_ids = set()
+
     for i, video_path in enumerate(episode_paths, 1):
         episode_id = get_episode_id(video_path)
-        print(f"\n[{i}/{len(episode_paths)}] Processing: {video_path.name} ({episode_id})")
+        run_episode_ids.add(episode_id)
 
-        scenes, summaries = process_episode(video_path, state)
+        if is_episode_complete(state, episode_id):
+            print(f"\n[{i}/{len(episode_paths)}] Skipping (already complete): {video_path.name} ({episode_id})")
+            scenes, summaries = load_existing_episode(episode_id)
+        else:
+            print(f"\n[{i}/{len(episode_paths)}] Processing: {video_path.name} ({episode_id})")
+            scenes, summaries = process_episode(video_path, state)
+
         all_scenes.extend(scenes)
         all_summaries.extend(summaries)
+
+    # Include previously processed episodes not in this run
+    for episode_id, ep_state in state.items():
+        if episode_id not in run_episode_ids and is_episode_complete(state, episode_id):
+            print(f"\n[Merge] Including previously processed: {episode_id}")
+            scenes, summaries = load_existing_episode(episode_id)
+            all_scenes.extend(scenes)
+            all_summaries.extend(summaries)
 
     # Step 5: Build combined database and embeddings
     print("\n[Final] Building scenes database...")
