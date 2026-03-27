@@ -53,12 +53,21 @@ export function ClipCard({ clip, onPreview, onShowJulian, compact }: ClipCardPro
         </span>
 
         {/* Add to queue button */}
-        <button
+        <div
+          role="button"
+          tabIndex={0}
           onClick={(e) => {
             e.stopPropagation();
             addToQueue(clip);
           }}
-          className={`absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold transition-all ${
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.stopPropagation();
+              e.preventDefault();
+              addToQueue(clip);
+            }
+          }}
+          className={`absolute right-2 top-2 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-[11px] font-bold transition-all ${
             inQueue
               ? "bg-primary text-primary-foreground"
               : "bg-black/60 text-white opacity-0 group-hover:opacity-100"
@@ -66,7 +75,7 @@ export function ClipCard({ clip, onPreview, onShowJulian, compact }: ClipCardPro
           aria-label={inQueue ? `In queue (${pos})` : "Add to queue"}
         >
           {inQueue ? pos : "+"}
-        </button>
+        </div>
       </button>
 
       {/* Content */}
