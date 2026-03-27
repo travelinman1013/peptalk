@@ -14,6 +14,7 @@ import { useFavorites } from "@/lib/hooks/use-favorites";
 import { useRecentlyUsed } from "@/lib/hooks/use-recently-used";
 import { usePlaylists } from "@/lib/hooks/use-playlists";
 import { useQueue } from "@/lib/queue-context";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function Home() {
   const [query, setQuery] = useState("");
@@ -98,9 +99,12 @@ export default function Home() {
       <div className="flex min-h-[100dvh] flex-col">
         {/* Header */}
         <header className="sticky top-0 z-30 border-b border-border/50 bg-background/80 px-4 pb-3 pt-4 backdrop-blur-xl">
-          <h1 className="mb-3 text-center text-lg font-bold tracking-tight">
-            PepTalk
-          </h1>
+          <div className="relative mb-3 flex items-center justify-center">
+            <h1 className="text-lg font-bold tracking-tight">PepTalk</h1>
+            <div className="absolute right-0">
+              <ThemeToggle />
+            </div>
+          </div>
           <SearchBar onSearch={handleSearch} isLoading={searchLoading} />
         </header>
 
