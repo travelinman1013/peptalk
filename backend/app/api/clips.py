@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import numpy as np
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 
@@ -66,6 +67,52 @@ def stream_clip_video(scene_id: str, request: Request):
         media_type="video/mp4",
         headers={"Accept-Ranges": "bytes"},
     )
+
+
+@router.get("/{scene_id}/suggestions")
+def get_clip_suggestions(scene_id: str) -> dict:
+    scene = search_engine.get_scene(scene_id)
+    if scene is None:
+        raise HTTPException(status_code=404, detail="Clip not found")
+
+    episode_id = scene["episode_id"]
+    start_time = scene["start_time"]
+
+    # Next clips in the same episode (sorted by start_time)
+    same_episode = [
+        s for s in search_engine.scenes
+        if s["episode_id"] == episode_id and s["start_time"] > start_time
+    ]
+    same_episode.sort(key=lambda s: s["start_time"])
+    next_in_episode = []
+    for s in same_episode[:2]:
+        clip = s.copy()
+        clip.pop("embedding", None)
+        clip["clip_url"] = f"/clips/{clip['scene_id']}/video"
+        clip["thumbnail_url"] = f"/clips/{clip['scene_id']}/thumbnail"
+        next_in_episode.append(clip)
+
+    # Related clips from different episodes (by embedding similarity)
+    related = []
+    idx = search_engine.scene_index.get(scene_id)
+    if idx is not None and search_engine.retrieval_embeddings is not None:
+        query_vec = search_engine.retrieval_embeddings[idx]
+        scores = search_engine.retrieval_embeddings @ query_vec
+        ranked = np.argsort(scores)[::-1]
+        for i in ranked:
+            candidate = search_engine.scenes[i]
+            if candidate["episode_id"] == episode_id:
+                continue
+            clip = candidate.copy()
+            clip.pop("embedding", None)
+            clip["clip_url"] = f"/clips/{clip['scene_id']}/video"
+            clip["thumbnail_url"] = f"/clips/{clip['scene_id']}/thumbnail"
+            clip["score"] = float(scores[i])
+            related.append(clip)
+            if len(related) >= 2:
+                break
+
+    return {"next_in_episode": next_in_episode, "related": related}
 
 
 @router.get("/{scene_id}/thumbnail", response_model=None)

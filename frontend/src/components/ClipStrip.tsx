@@ -76,7 +76,7 @@ export function ClipStrip({ name, count, clips, onPreview }: ClipStripProps) {
                     className={`absolute right-1 top-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full text-[10px] font-bold transition-all ${
                       inQueue
                         ? "bg-primary text-primary-foreground"
-                        : "bg-black/60 text-white opacity-0 group-hover:opacity-100"
+                        : "bg-black/60 text-white"
                     }`}
                     aria-label={inQueue ? `In queue (${pos})` : "Add to queue"}
                   >

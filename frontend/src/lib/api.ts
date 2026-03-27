@@ -94,6 +94,19 @@ export async function getClipMetadata(
   return res.json();
 }
 
+export interface SuggestionsResponse {
+  next_in_episode: BrowseClip[];
+  related: BrowseClip[];
+}
+
+export async function getClipSuggestions(
+  sceneId: string
+): Promise<SuggestionsResponse> {
+  const res = await fetch(`${API_BASE}/clips/${sceneId}/suggestions`);
+  if (!res.ok) throw new Error(`Suggestions failed: ${res.status}`);
+  return res.json();
+}
+
 export function getVideoUrl(sceneId: string): string {
   return `${API_BASE}/clips/${sceneId}/video`;
 }

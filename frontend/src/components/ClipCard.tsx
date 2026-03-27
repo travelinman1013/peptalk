@@ -70,7 +70,7 @@ export function ClipCard({ clip, onPreview, onShowJulian, compact }: ClipCardPro
           className={`absolute right-2 top-2 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-[11px] font-bold transition-all ${
             inQueue
               ? "bg-primary text-primary-foreground"
-              : "bg-black/60 text-white opacity-0 group-hover:opacity-100"
+              : "bg-black/60 text-white"
           }`}
           aria-label={inQueue ? `In queue (${pos})` : "Add to queue"}
         >

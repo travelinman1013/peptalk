@@ -15,6 +15,7 @@ import { useRecentlyUsed } from "@/lib/hooks/use-recently-used";
 import { usePlaylists } from "@/lib/hooks/use-playlists";
 import { useQueue } from "@/lib/queue-context";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ClipSuggestions } from "@/components/ClipSuggestions";
 
 export default function Home() {
   const [query, setQuery] = useState("");
@@ -193,6 +194,9 @@ export default function Home() {
           )}
         </main>
       </div>
+
+      {/* Clip suggestions — after adding to queue */}
+      {!previewClip && <ClipSuggestions />}
 
       {/* Video Preview — bottom sheet */}
       {previewClip && (

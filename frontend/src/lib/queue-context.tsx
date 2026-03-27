@@ -12,11 +12,13 @@ import type { ClipResult, BrowseClip } from "@/lib/api";
 
 interface QueueContextValue {
   queue: (ClipResult | BrowseClip)[];
+  lastAddedSceneId: string | null;
   addToQueue: (clip: ClipResult | BrowseClip) => void;
   removeFromQueue: (sceneId: string) => void;
   clearQueue: () => void;
   isInQueue: (sceneId: string) => boolean;
   queuePosition: (sceneId: string) => number;
+  dismissSuggestions: () => void;
 }
 
 const QueueContext = createContext<QueueContextValue | null>(null);
@@ -25,6 +27,7 @@ const STORAGE_KEY = "peptalk-queue";
 
 export function QueueProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<(ClipResult | BrowseClip)[]>([]);
+  const [lastAddedSceneId, setLastAddedSceneId] = useState<string | null>(null);
 
   // Restore from localStorage on mount
   useEffect(() => {
@@ -53,6 +56,11 @@ export function QueueProvider({ children }: { children: ReactNode }) {
       if (prev.some((c) => c.scene_id === clip.scene_id)) return prev;
       return [...prev, clip];
     });
+    setLastAddedSceneId(clip.scene_id);
+  }, []);
+
+  const dismissSuggestions = useCallback(() => {
+    setLastAddedSceneId(null);
   }, []);
 
   const removeFromQueue = useCallback((sceneId: string) => {
@@ -79,11 +87,13 @@ export function QueueProvider({ children }: { children: ReactNode }) {
   return (
     <QueueContext value={{
       queue,
+      lastAddedSceneId,
       addToQueue,
       removeFromQueue,
       clearQueue,
       isInQueue,
       queuePosition,
+      dismissSuggestions,
     }}>
       {children}
     </QueueContext>
