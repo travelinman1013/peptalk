@@ -7,6 +7,10 @@
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && uv run uvicorn app.main:app --reload --port 8000",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "ingest": "cd backend && uv run python scripts/ingest.py"
+    "ingest": "cd backend && uv run python scripts/ingest.py",
+    "tunnel": "ngrok start --all --config \"$HOME/Library/Application Support/ngrok/ngrok.yml\" --config ngrok.yml"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }
