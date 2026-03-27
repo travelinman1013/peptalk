@@ -6,13 +6,30 @@ communication retrieval, including parent trigger phrases.
 
 import base64
 import json
+import random
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
 import anthropic
 
 from app.core.config import settings
+
+MAX_RETRIES = 5
+BACKOFF_BASE = 3.0
+# Minimum seconds between API calls (shared across scenes within one worker).
+# With 3 workers, this means ~1 call/sec globally, staying under 50k tokens/min.
+API_CALL_INTERVAL = 3.0
+RETRYABLE_ERRORS = (
+    anthropic.RateLimitError,
+    anthropic.APIStatusError,
+    anthropic.APIConnectionError,
+    anthropic.APITimeoutError,
+)
+
+# Track last API call time per-process for rate limiting
+_last_api_call: float = 0.0
 
 SYSTEM_PROMPT = """\
 You are an expert in child development and Augmentative and Alternative Communication (AAC). \
@@ -154,13 +171,30 @@ def summarize_scene(
     content.append({"type": "text", "text": text})
 
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-    response = client.messages.create(
-        model=settings.claude_model,
-        max_tokens=1024,
-        temperature=settings.summarize_temperature,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": content}],
-    )
+
+    # Rate limit: wait if we called the API too recently
+    global _last_api_call
+    elapsed = time.monotonic() - _last_api_call
+    if elapsed < API_CALL_INTERVAL:
+        time.sleep(API_CALL_INTERVAL - elapsed)
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            _last_api_call = time.monotonic()
+            response = client.messages.create(
+                model=settings.claude_model,
+                max_tokens=1024,
+                temperature=settings.summarize_temperature,
+                system=SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": content}],
+            )
+            break
+        except RETRYABLE_ERRORS as e:
+            if attempt == MAX_RETRIES - 1:
+                raise
+            sleep_time = (BACKOFF_BASE ** attempt) + random.uniform(0, 1)
+            print(f"    API retry {attempt + 1}/{MAX_RETRIES} for {scene_id}: {e}. Waiting {sleep_time:.1f}s...")
+            time.sleep(sleep_time)
 
     response_text = response.content[0].text.strip()
     # Strip markdown code fences if present

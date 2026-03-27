@@ -31,6 +31,13 @@ def main():
         default="mkv,avi,mp4",
         help="Comma-separated file extensions to look for (default: mkv,avi,mp4)",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Number of episodes to process in parallel (default: 1). "
+             "Use 1 if episodes need Whisper transcription (no SRT files) to avoid GPU contention.",
+    )
 
     args = parser.parse_args()
 
@@ -70,11 +77,15 @@ def main():
             print(f"No episodes found in {episodes_dir}")
             sys.exit(1)
 
+    # Cap workers at episode count and CPU count
+    import os
+    workers = max(1, min(args.workers, len(episode_paths), os.cpu_count() or 1))
+
     print(f"PepTalk Ingestion Pipeline")
-    print(f"Found {len(episode_paths)} episode(s) to process")
+    print(f"Found {len(episode_paths)} episode(s) to process with {workers} worker(s)")
     print("=" * 50)
 
-    run_pipeline(episode_paths)
+    run_pipeline(episode_paths, workers=workers)
 
 
 if __name__ == "__main__":

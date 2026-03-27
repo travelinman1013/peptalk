@@ -26,6 +26,8 @@ backend/data/thumbnails/
 backend/data/transcripts/
 backend/data/scenes/
 backend/data/summaries/
+backend/data/state/
+backend/data/pipeline_state.json.migrated
 
 # Environment
 .env

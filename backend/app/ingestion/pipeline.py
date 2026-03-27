@@ -1,63 +1,22 @@
-"""Pipeline orchestrator with resumable state.
+"""Pipeline orchestrator with parallel episode processing.
 
-Runs all ingestion steps in sequence for each episode,
-tracking progress in pipeline_state.json for resumability.
+Phase A: Process episodes in parallel (transcribe → chunk → summarize → extract)
+Phase B: Merge all episodes into the global database and generate embeddings
 """
 
 import json
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 from app.core.config import settings
-from app.ingestion.chunk import chunk_episode
 from app.ingestion.embed import embed_all_episodes
-from app.ingestion.extract import extract_episode_clips
-from app.ingestion.summarize import summarize_episode
-from app.ingestion.transcribe import transcribe_episode
-
-STATE_FILE = "pipeline_state.json"
-
-
-def load_state() -> dict:
-    state_path = settings.data_dir / STATE_FILE
-    if state_path.exists():
-        with open(state_path) as f:
-            return json.load(f)
-    return {}
-
-
-def save_state(state: dict) -> None:
-    state_path = settings.data_dir / STATE_FILE
-    settings.data_dir.mkdir(parents=True, exist_ok=True)
-    with open(state_path, "w") as f:
-        json.dump(state, f, indent=2)
-
-
-def get_episode_id(video_path: Path) -> str:
-    """Derive episode ID from filename. Expects format like s01e01 or S01E01."""
-    stem = video_path.stem.lower()
-    # Try to extract season/episode pattern
-    import re
-    match = re.search(r"s(\d+)e(\d+)", stem)
-    if match:
-        return f"s{int(match.group(1)):02d}e{int(match.group(2)):02d}"
-    # Fallback: use sanitized filename
-    return re.sub(r"[^a-z0-9]", "_", stem).strip("_")
-
-
-def get_episode_title(video_path: Path) -> str:
-    """Extract episode title from filename."""
-    stem = video_path.stem
-    # Remove common patterns like "S01E01 - " or "s01e01_"
-    import re
-    title = re.sub(r"[Ss]\d+[Ee]\d+[\s_\-\.]*", "", stem)
-    title = title.replace("_", " ").replace(".", " ").strip()
-    return title or stem
-
-
-def is_episode_complete(state: dict, episode_id: str) -> bool:
-    """Check if all pipeline steps are complete for an episode."""
-    ep = state.get(episode_id, {})
-    return all(ep.get(step) for step in ("transcribed", "chunked", "summarized", "clipped"))
+from app.ingestion.state import (
+    get_episode_id,
+    is_episode_complete,
+    load_all_states,
+    migrate_legacy_state,
+)
+from app.ingestion.worker import EpisodeResult, process_episode_worker
 
 
 def load_existing_episode(episode_id: str) -> tuple[list[dict], list[dict | None]]:
@@ -73,73 +32,10 @@ def load_existing_episode(episode_id: str) -> tuple[list[dict], list[dict | None
     return scenes, summaries
 
 
-def process_episode(video_path: Path, state: dict) -> tuple[list[dict], list[dict | None]]:
-    """Process a single episode through all pipeline stages."""
-    episode_id = get_episode_id(video_path)
-    episode_title = get_episode_title(video_path)
-
-    if episode_id not in state:
-        state[episode_id] = {
-            "transcribed": False,
-            "chunked": False,
-            "summarized": False,
-            "clipped": False,
-            "video_path": str(video_path),
-        }
-
-    ep_state = state[episode_id]
-
-    # Step 1: Transcribe
-    if not ep_state["transcribed"]:
-        print(f"  [1/4] Transcribing {episode_id}...")
-        transcript = transcribe_episode(video_path, episode_id)
-        ep_state["transcribed"] = True
-        save_state(state)
-        source = transcript.get("transcript_source", "unknown")
-        print(f"    Source: {source} ({len(transcript.get('segments', []))} segments)")
-    else:
-        print(f"  [1/4] Transcription cached")
-        transcript = transcribe_episode(video_path, episode_id)
-
-    # Step 2: Chunk
-    if not ep_state["chunked"]:
-        print(f"  [2/4] Chunking {episode_id}...")
-        scenes = chunk_episode(video_path, episode_id, transcript)
-        ep_state["chunked"] = True
-        save_state(state)
-        print(f"    {len(scenes)} scenes detected")
-    else:
-        print(f"  [2/4] Chunks cached")
-        scenes = chunk_episode(video_path, episode_id, transcript)
-
-    # Step 3: Summarize
-    if not ep_state["summarized"]:
-        print(f"  [3/4] Summarizing {episode_id}...")
-        summaries = summarize_episode(video_path, episode_id, episode_title, scenes)
-        ep_state["summarized"] = True
-        save_state(state)
-        valid_summaries = sum(1 for s in summaries if s is not None)
-        print(f"    {valid_summaries} scenes summarized")
-    else:
-        print(f"  [3/4] Summaries cached")
-        summaries = summarize_episode(video_path, episode_id, episode_title, scenes)
-
-    # Step 4: Extract clips
-    if not ep_state["clipped"]:
-        print(f"  [4/4] Extracting clips for {episode_id}...")
-        extract_episode_clips(video_path, scenes)
-        ep_state["clipped"] = True
-        save_state(state)
-    else:
-        print(f"  [4/4] Clips cached")
-
-    return scenes, summaries
-
-
 def build_scenes_db(
     all_scenes: list[dict],
     all_summaries: list[dict | None],
-) -> None:
+) -> list[dict]:
     """Combine scenes and summaries into the final scenes.json database."""
     db_scenes = []
 
@@ -158,12 +54,11 @@ def build_scenes_db(
             "scene_type": scene.get("scene_type", "narrative"),
             "transcript": scene.get("transcript_text", ""),
             "visual_cuts": scene.get("visual_cuts", []),
-            "has_clean_start": True,  # Default; can be refined later
+            "has_clean_start": True,
             "has_clean_end": True,
             "trim_in": 0.0,
             "trim_out": scene["duration"],
-            "segments": [],  # Empty for PoC; future multi-clip composition
-            # Merge summary fields
+            "segments": [],
             **summary,
         }
         db_scenes.append(db_scene)
@@ -175,45 +70,121 @@ def build_scenes_db(
     return db_scenes
 
 
-def run_pipeline(episode_paths: list[Path]) -> None:
-    """Run the full ingestion pipeline across all episodes."""
-    state = load_state()
+def run_pipeline(episode_paths: list[Path], workers: int = 1) -> None:
+    """Run the full ingestion pipeline across all episodes.
+
+    Args:
+        episode_paths: List of video file paths to process.
+        workers: Number of episodes to process in parallel.
+    """
+    # One-time migration from legacy single state file
+    migrate_legacy_state()
+
+    # Identify which episodes need processing
+    episodes_to_process = []
+    episodes_already_done = []
+
+    for video_path in episode_paths:
+        episode_id = get_episode_id(video_path)
+        if is_episode_complete(episode_id):
+            episodes_already_done.append(episode_id)
+        else:
+            episodes_to_process.append(video_path)
+
+    if episodes_already_done:
+        print(f"Skipping {len(episodes_already_done)} already-complete episode(s)")
+
+    # ── Phase A: Parallel per-episode processing ──
+
+    results: list[EpisodeResult] = []
+
+    if episodes_to_process:
+        total = len(episodes_to_process)
+        print(f"\nProcessing {total} episode(s) with {workers} worker(s)...")
+
+        if workers == 1:
+            # Sequential — avoid ProcessPoolExecutor overhead
+            for i, video_path in enumerate(episodes_to_process, 1):
+                episode_id = get_episode_id(video_path)
+                episode_title = _get_episode_title(video_path)
+                print(f"\n[{i}/{total}] {video_path.name} ({episode_id})")
+                result = process_episode_worker(str(video_path), episode_id, episode_title)
+                results.append(result)
+                _print_result(result, i, total)
+        else:
+            # Parallel
+            with ProcessPoolExecutor(max_workers=workers) as pool:
+                future_to_path = {}
+                for video_path in episodes_to_process:
+                    episode_id = get_episode_id(video_path)
+                    episode_title = _get_episode_title(video_path)
+                    future = pool.submit(
+                        process_episode_worker,
+                        str(video_path),
+                        episode_id,
+                        episode_title,
+                    )
+                    future_to_path[future] = video_path
+
+                completed = 0
+                for future in as_completed(future_to_path):
+                    completed += 1
+                    result = future.result()
+                    results.append(result)
+                    _print_result(result, completed, total)
+
+    # Report failures
+    failures = [r for r in results if not r.success]
+    if failures:
+        print(f"\n{'='*50}")
+        print(f"{len(failures)} episode(s) FAILED:")
+        for r in failures:
+            print(f"  {r.episode_id}: {r.error}")
+        print(f"{'='*50}")
+
+    # ── Phase B: Global merge (load all completed episodes from disk) ──
 
     all_scenes: list[dict] = []
     all_summaries: list[dict | None] = []
 
-    # Collect episode IDs we're processing in this run
-    run_episode_ids = set()
+    # Load ALL completed episodes (this run + previous runs)
+    all_states = load_all_states()
+    for episode_id, ep_state in sorted(all_states.items()):
+        if all(ep_state.get(step) for step in ("transcribed", "chunked", "summarized", "clipped")):
+            try:
+                scenes, summaries = load_existing_episode(episode_id)
+                all_scenes.extend(scenes)
+                all_summaries.extend(summaries)
+            except FileNotFoundError:
+                print(f"Warning: Could not load data for {episode_id}, skipping in merge")
 
-    for i, video_path in enumerate(episode_paths, 1):
-        episode_id = get_episode_id(video_path)
-        run_episode_ids.add(episode_id)
+    if not all_scenes:
+        print("\nNo scenes to build database from.")
+        return
 
-        if is_episode_complete(state, episode_id):
-            print(f"\n[{i}/{len(episode_paths)}] Skipping (already complete): {video_path.name} ({episode_id})")
-            scenes, summaries = load_existing_episode(episode_id)
-        else:
-            print(f"\n[{i}/{len(episode_paths)}] Processing: {video_path.name} ({episode_id})")
-            scenes, summaries = process_episode(video_path, state)
-
-        all_scenes.extend(scenes)
-        all_summaries.extend(summaries)
-
-    # Include previously processed episodes not in this run
-    for episode_id, ep_state in state.items():
-        if episode_id not in run_episode_ids and is_episode_complete(state, episode_id):
-            print(f"\n[Merge] Including previously processed: {episode_id}")
-            scenes, summaries = load_existing_episode(episode_id)
-            all_scenes.extend(scenes)
-            all_summaries.extend(summaries)
-
-    # Step 5: Build combined database and embeddings
-    print("\n[Final] Building scenes database...")
+    print(f"\n[Merge] Building scenes database from {len(all_states)} episode(s)...")
     db_scenes = build_scenes_db(all_scenes, all_summaries)
     print(f"  {len(db_scenes)} scenes in database")
 
-    print("[Final] Generating embeddings...")
+    print("[Merge] Generating embeddings...")
     embed_all_episodes(all_scenes, all_summaries)
     print("  Embeddings saved")
 
-    print(f"\nPipeline complete! {len(db_scenes)} searchable clips ready.")
+    succeeded = sum(1 for r in results if r.success)
+    print(f"\nPipeline complete! {succeeded} new + {len(episodes_already_done)} cached = {len(db_scenes)} searchable clips.")
+
+
+def _get_episode_title(video_path: Path) -> str:
+    """Extract episode title from filename."""
+    import re
+    stem = video_path.stem
+    title = re.sub(r"[Ss]\d+[Ee]\d+[\s_\-\.]*", "", stem)
+    title = title.replace("_", " ").replace(".", " ").strip()
+    return title or stem
+
+
+def _print_result(result: EpisodeResult, completed: int, total: int) -> None:
+    if result.success:
+        print(f"\n[{completed}/{total} done] {result.episode_id}: {result.scene_count} scenes in {result.duration_secs}s")
+    else:
+        print(f"\n[{completed}/{total} done] {result.episode_id}: FAILED — {result.error}")
