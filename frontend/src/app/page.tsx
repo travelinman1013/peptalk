@@ -10,6 +10,7 @@ import { VideoPreview } from "@/components/VideoPreview";
 import { JulianPlayer } from "@/components/JulianPlayer";
 import { QueueStrip } from "@/components/QueueStrip";
 import { PlaylistStrip } from "@/components/PlaylistStrip";
+import { SkeletonStrip, SkeletonGrid } from "@/components/Skeletons";
 import { useFavorites } from "@/lib/hooks/use-favorites";
 import { useRecentlyUsed } from "@/lib/hooks/use-recently-used";
 import { usePlaylists } from "@/lib/hooks/use-playlists";
@@ -30,14 +31,14 @@ export default function Home() {
   const { queue, clearQueue } = useQueue();
 
   // Search results
-  const { data: searchData, isLoading: searchLoading } = useQuery({
+  const { data: searchData, isLoading: searchLoading, isError: searchError, refetch: refetchSearch } = useQuery({
     queryKey: ["search", query],
     queryFn: () => searchClips(query),
     enabled: query.length > 0,
   });
 
   // Browse categories (load on mount)
-  const { data: browseData } = useQuery({
+  const { data: browseData, isLoading: browseLoading, isError: browseError, refetch: refetchBrowse } = useQuery({
     queryKey: ["browse"],
     queryFn: () => browseCategories(12),
   });
@@ -108,39 +109,69 @@ export default function Home() {
       {/* Main app */}
       <div className="flex min-h-[100dvh] flex-col">
         {/* Header */}
-        <header className="sticky top-0 z-30 border-b border-border/50 bg-background/80 px-4 pb-3 pt-4 backdrop-blur-xl">
-          <div className="relative mb-3 flex items-center justify-center">
-            <div className="absolute left-0">
-              <HelpMenu />
+        <header className="sticky top-0 z-30 bg-background/90 px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] shadow-[0_1px_3px_0_rgb(0_0_0/0.08)] backdrop-blur-xl dark:shadow-[0_1px_3px_0_rgb(0_0_0/0.3)]">
+          <div className="mx-auto max-w-2xl">
+            <div className="relative mb-3 flex items-center justify-center">
+              <div className="absolute left-0">
+                <HelpMenu />
+              </div>
+              <h1 className="font-heading text-xl font-extrabold tracking-tight">
+                <span className="text-primary">Pep</span>Talk
+              </h1>
+              <div className="absolute right-0">
+                <ThemeToggle />
+              </div>
             </div>
-            <h1 className="text-lg font-bold tracking-tight">PepTalk</h1>
-            <div className="absolute right-0">
-              <ThemeToggle />
-            </div>
+            <SearchBar onSearch={handleSearch} isLoading={searchLoading} />
           </div>
-          <SearchBar onSearch={handleSearch} isLoading={searchLoading} />
         </header>
 
         {/* Queue strip — below header */}
         <QueueStrip onPlayAll={handlePlayQueue} onSavePlaylist={handleSavePlaylist} />
 
         {/* Content */}
-        <main className="flex-1 px-4 py-4">
+        <main className="flex-1 px-4 py-5 sm:px-6">
           {isSearching ? (
             /* Search results */
-            <div>
-              <p className="mb-3 text-xs font-medium text-muted-foreground">
-                {searchResults.length} results for &ldquo;{query}&rdquo;
-              </p>
-              <ClipGrid
-                clips={searchResults}
-                onPreview={handlePreview}
-                onShowJulian={handleShowJulian}
-              />
+            <div className="mx-auto max-w-2xl animate-content-enter">
+              <div className="mb-4 flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground">
+                  {searchLoading ? "Searching..." : `${searchResults.length} results`}
+                </span>
+                {!searchLoading && (
+                  <span className="rounded-lg bg-muted px-2 py-0.5 text-sm font-semibold">
+                    {query}
+                  </span>
+                )}
+              </div>
+              {searchError ? (
+                <div className="rounded-2xl border border-destructive/10 bg-destructive/5 p-6 text-center">
+                  <svg className="mx-auto mb-3 text-destructive" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                  <p className="text-sm font-medium text-destructive">Something went wrong</p>
+                  <button
+                    onClick={() => refetchSearch()}
+                    className="mt-3 rounded-xl bg-destructive/10 px-4 py-2 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/20"
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : searchLoading ? (
+                <SkeletonGrid />
+              ) : (
+                <ClipGrid
+                  clips={searchResults}
+                  onPreview={handlePreview}
+                  onShowJulian={handleShowJulian}
+                />
+              )}
             </div>
           ) : (
             /* Category browse */
-            <div className="space-y-6">
+            <div className="animate-content-enter space-y-8">
               {/* Recently Used */}
               {recentClips.length > 0 && (
                 <ClipStrip
@@ -175,7 +206,23 @@ export default function Home() {
               )}
 
               {/* API categories */}
-              {categories.length > 0 ? (
+              {browseError ? (
+                <div className="rounded-2xl border border-destructive/10 bg-destructive/5 p-6 text-center">
+                  <p className="text-sm font-medium text-destructive">Couldn&apos;t load categories</p>
+                  <button
+                    onClick={() => refetchBrowse()}
+                    className="mt-3 rounded-xl bg-destructive/10 px-4 py-2 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/20"
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : browseLoading ? (
+                <>
+                  <SkeletonStrip />
+                  <SkeletonStrip />
+                  <SkeletonStrip />
+                </>
+              ) : categories.length > 0 ? (
                 categories.map((cat) => (
                   <ClipStrip
                     key={cat.tag}
@@ -192,13 +239,22 @@ export default function Home() {
                 recentClips.length === 0 &&
                   favorites.length === 0 &&
                   playlists.length === 0 && (
-                    <div className="py-20 text-center">
-                      <p className="text-lg font-medium text-muted-foreground">
-                        What would you like to say to Julian?
+                    <div className="py-20 flex flex-col items-center gap-3 text-center">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                        <svg className="text-primary" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="11" cy="11" r="8" />
+                          <path d="m21 21-4.3-4.3" />
+                        </svg>
+                      </div>
+                      <p className="font-heading text-lg font-bold text-foreground">
+                        Welcome to PepTalk
                       </p>
-                      <p className="mt-2 text-sm text-muted-foreground/70">
-                        Type a phrase above to find the right clip
+                      <p className="text-sm text-muted-foreground">
+                        Type what you&apos;d like to say to Julian and we&apos;ll find the perfect clip
                       </p>
+                      <svg className="mt-2 animate-bounce text-muted-foreground/40" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="m18 15-6-6-6 6" />
+                      </svg>
                     </div>
                   )
               )}

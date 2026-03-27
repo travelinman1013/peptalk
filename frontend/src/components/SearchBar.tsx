@@ -50,10 +50,13 @@ export function SearchBar({ onSearch, isLoading }: SearchBarProps) {
   }, []);
 
   return (
-    <form onSubmit={handleSubmit} className="relative w-full">
+    <form
+      onSubmit={handleSubmit}
+      className="group relative w-full rounded-2xl bg-muted/50 ring-1 ring-border/50 transition-all duration-200 focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/40 focus-within:shadow-lg focus-within:shadow-primary/5"
+    >
       {/* Search icon */}
       <svg
-        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors duration-200 group-focus-within:text-primary"
         width="18"
         height="18"
         viewBox="0 0 24 24"
@@ -72,8 +75,8 @@ export function SearchBar({ onSearch, isLoading }: SearchBarProps) {
         type="text"
         value={value}
         onChange={handleChange}
-        placeholder='What do you want to say? (e.g., "time for bed")'
-        className="h-12 rounded-xl pl-10 pr-10 text-base"
+        placeholder="What would you like to say to Julian?"
+        className="h-[52px] rounded-2xl border-none bg-transparent pl-10 pr-10 text-base shadow-none ring-0 focus-visible:ring-0"
         autoComplete="off"
         enterKeyHint="search"
         aria-label="Search for a clip to play"

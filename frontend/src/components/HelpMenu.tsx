@@ -92,15 +92,15 @@ export function HelpMenu() {
       {open && (
         <div
           ref={panelRef}
-          className="absolute left-0 top-full z-50 mt-2 w-[calc(100vw-2rem)] max-w-sm animate-fade-in rounded-lg border border-border bg-card p-4 shadow-lg"
+          className="absolute left-0 top-full z-50 mt-2 w-[calc(100vw-2rem)] max-w-sm animate-slide-up rounded-2xl border border-border bg-card p-4 shadow-xl"
         >
           <div className="max-h-[70vh] space-y-4 overflow-y-auto text-sm text-card-foreground">
             <section>
               <h3 className="mb-1 font-semibold">What is PepTalk?</h3>
               <p className="text-muted-foreground">
-                PepTalk helps you communicate with Julian using Peppa Pig clips.
+                PepTalk helps you communicate using Peppa Pig clips.
                 Type what you want to say and the app finds the best matching
-                clip to play for him.
+                clip to play.
               </p>
             </section>
 

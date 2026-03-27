@@ -34,11 +34,17 @@ export function ClipSuggestions() {
   if (next_in_episode.length === 0 && related.length === 0) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 shadow-2xl backdrop-blur-md animate-fade-in">
-      <div className="mx-auto max-w-lg p-3">
+    <div className="fixed inset-x-0 bottom-0 z-30 rounded-t-2xl bg-card/95 shadow-[0_-4px_24px_rgba(0,0,0,0.2)] backdrop-blur-md animate-slide-up">
+      {/* Auto-dismiss progress bar */}
+      <div className="px-3 pt-2">
+        <div className="h-0.5 rounded-full bg-primary/20 overflow-hidden">
+          <div className="h-full bg-primary/40 rounded-full" style={{ animation: "shrink 8s linear forwards" }} />
+        </div>
+      </div>
+      <div className="mx-auto max-w-lg p-3 pt-2">
         {/* Header */}
         <div className="mb-2 flex items-center justify-between">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-heading">
             Add more?
           </p>
           <button

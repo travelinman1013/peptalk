@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState, useEffect, useCallback } from "react";
 import { BrowseClip, getThumbnailUrl } from "@/lib/api";
 import { getClipTitle, getClipSubtitle, getClipLabel } from "@/lib/clip-labels";
 import { useQueue } from "@/lib/queue-context";
@@ -15,22 +16,67 @@ interface ClipStripProps {
 
 export function ClipStrip({ name, count, clips, onPreview }: ClipStripProps) {
   const { addToQueue, isInQueue, queuePosition } = useQueue();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+
+  const checkScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 10);
+    setCanScrollLeft(el.scrollLeft > 10);
+  }, []);
+
+  useEffect(() => {
+    checkScroll();
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", checkScroll, { passive: true });
+    return () => el.removeEventListener("scroll", checkScroll);
+  }, [checkScroll, clips]);
+
+  const scrollToEnd = () => {
+    scrollRef.current?.scrollTo({ left: scrollRef.current.scrollWidth, behavior: "smooth" });
+  };
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2">
       {/* Header */}
-      <div className="flex items-baseline justify-between px-1">
-        <h2 className="text-sm font-semibold tracking-tight">
+      <div className="flex items-center justify-between px-1">
+        <h2 className="flex items-center gap-2 text-sm font-bold tracking-tight font-heading">
           {name}
-          <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+          <span className="inline-flex h-5 items-center rounded-full bg-muted px-2 text-[10px] font-medium text-muted-foreground tabular-nums">
             {count}
           </span>
         </h2>
+        {clips.length > 5 && (
+          <button
+            onClick={scrollToEnd}
+            className="flex items-center gap-0.5 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+          >
+            See all
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </button>
+        )}
       </div>
 
-      {/* Horizontal scroll */}
-      <div className="-mx-4 px-4">
-        <div className="flex gap-2.5 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none">
+      {/* Horizontal scroll with fade edges */}
+      <div className="relative -mx-4 px-4">
+        {/* Left fade */}
+        {canScrollLeft && (
+          <div className="pointer-events-none absolute bottom-2 left-0 top-0 z-10 w-8 bg-gradient-to-r from-background to-transparent" />
+        )}
+        {/* Right fade */}
+        {canScrollRight && (
+          <div className="pointer-events-none absolute bottom-2 right-0 top-0 z-10 w-8 bg-gradient-to-l from-background to-transparent" />
+        )}
+
+        <div
+          ref={scrollRef}
+          className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none"
+        >
           {clips.map((clip) => {
             const inQueue = isInQueue(clip.scene_id);
             const pos = queuePosition(clip.scene_id);
@@ -39,22 +85,22 @@ export function ClipStrip({ name, count, clips, onPreview }: ClipStripProps) {
               <div
                 key={clip.scene_id}
                 className="flex-none snap-start"
-                style={{ width: "140px" }}
+                style={{ width: "156px" }}
               >
                 {/* Thumbnail */}
                 <button
                   onClick={() => onPreview(clip)}
-                  className="group relative aspect-video w-full overflow-hidden rounded-lg bg-muted"
+                  className="group relative aspect-video w-full overflow-hidden rounded-xl bg-muted transition-transform duration-150 ease-out active:scale-[0.97]"
                   aria-label={`Preview: ${getClipLabel(clip, 60)}`}
                 >
                   <img
                     src={getThumbnailUrl(clip.scene_id)}
                     alt={getClipLabel(clip, 60)}
-                    className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                    className="h-full w-full object-cover"
                     loading="lazy"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-                  <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1 py-0.5 text-[10px] font-medium text-white">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/5 to-transparent" />
+                  <span className="absolute bottom-1 right-1 rounded-md bg-black/75 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white backdrop-blur-sm">
                     {Math.round(clip.duration)}s
                   </span>
 
@@ -73,9 +119,9 @@ export function ClipStrip({ name, count, clips, onPreview }: ClipStripProps) {
                         addToQueue(clip);
                       }
                     }}
-                    className={`absolute right-1 top-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full text-[10px] font-bold transition-all ${
+                    className={`absolute right-1 top-1 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-[11px] font-bold backdrop-blur-sm transition-all ${
                       inQueue
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-primary text-primary-foreground animate-pop"
                         : "bg-black/60 text-white"
                     }`}
                     aria-label={inQueue ? `In queue (${pos})` : "Add to queue"}
@@ -85,11 +131,11 @@ export function ClipStrip({ name, count, clips, onPreview }: ClipStripProps) {
                 </button>
 
                 {/* Title + subtitle */}
-                <p className="mt-1.5 line-clamp-1 text-xs font-medium leading-tight">
+                <p className="mt-2 line-clamp-1 text-xs font-semibold leading-tight tracking-tight">
                   {getClipTitle(clip)}
                 </p>
                 {getClipSubtitle(clip) && (
-                  <p className="line-clamp-1 text-[10px] leading-tight text-muted-foreground">
+                  <p className="mt-0.5 line-clamp-1 text-[10px] leading-tight text-muted-foreground">
                     {getClipSubtitle(clip)}
                   </p>
                 )}

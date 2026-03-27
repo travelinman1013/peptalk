@@ -30,18 +30,18 @@ export function PlaylistStrip({ playlists, onPlay, onDelete }: PlaylistStripProp
   if (playlists.length === 0) return null;
 
   return (
-    <div className="space-y-2.5">
-      <div className="flex items-baseline justify-between px-1">
-        <h2 className="text-sm font-semibold tracking-tight">
+    <div className="space-y-2">
+      <div className="flex items-center justify-between px-1">
+        <h2 className="flex items-center gap-2 text-sm font-bold tracking-tight font-heading">
           My Playlists
-          <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+          <span className="inline-flex h-5 items-center rounded-full bg-muted px-2 text-[10px] font-medium text-muted-foreground tabular-nums">
             {playlists.length}
           </span>
         </h2>
       </div>
 
       <div className="-mx-4 px-4">
-        <div className="flex gap-2.5 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none">
+        <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none">
           {playlists.map((playlist) => {
             const thumbs = playlist.clips.slice(0, 3);
 
@@ -49,7 +49,7 @@ export function PlaylistStrip({ playlists, onPlay, onDelete }: PlaylistStripProp
               <div
                 key={playlist.id}
                 className="flex-none snap-start"
-                style={{ width: "160px" }}
+                style={{ width: "172px" }}
               >
                 {/* Thumbnail mosaic */}
                 <button
@@ -63,7 +63,7 @@ export function PlaylistStrip({ playlists, onPlay, onDelete }: PlaylistStripProp
                   onMouseDown={() => handleLongPressStart(playlist.id)}
                   onMouseUp={handleLongPressEnd}
                   onMouseLeave={handleLongPressEnd}
-                  className="group relative aspect-video w-full overflow-hidden rounded-lg bg-muted"
+                  className="group relative aspect-video w-full overflow-hidden rounded-xl bg-muted transition-transform duration-150 active:scale-[0.97]"
                   aria-label={`Play playlist: ${playlist.name}`}
                 >
                   {/* Stack up to 3 thumbnails with slight offset */}
@@ -92,8 +92,8 @@ export function PlaylistStrip({ playlists, onPlay, onDelete }: PlaylistStripProp
 
                   {/* Play icon */}
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
-                    <div className="rounded-full bg-white/90 p-2 shadow-lg backdrop-blur-sm">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-foreground">
+                    <div className="rounded-full bg-primary/90 p-2 shadow-lg backdrop-blur-sm">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-primary-foreground">
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </div>
