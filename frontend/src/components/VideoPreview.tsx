@@ -1,10 +1,12 @@
 "use client";
 
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ClipResult, BrowseClip, isClipResult, getVideoUrl } from "@/lib/api";
 import { getClipTitle, getClipSubtitle, getClipLabel } from "@/lib/clip-labels";
 import { useQueue } from "@/lib/queue-context";
+import { useAirPlay } from "@/lib/hooks/use-airplay";
 
 interface VideoPreviewProps {
   clip: ClipResult | BrowseClip;
@@ -15,7 +17,9 @@ interface VideoPreviewProps {
 }
 
 export function VideoPreview({ clip, isFavorited, onToggleFavorite, onClose, onShowJulian }: VideoPreviewProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
   const { addToQueue, isInQueue } = useQueue();
+  const { airplayAvailable, airplayActive, showAirPlayPicker } = useAirPlay(videoRef);
   const inQueue = isInQueue(clip.scene_id);
   const title = getClipTitle(clip);
   const subtitle = getClipSubtitle(clip);
@@ -49,6 +53,7 @@ export function VideoPreview({ clip, isFavorited, onToggleFavorite, onClose, onS
 
         {/* Video */}
         <video
+          ref={videoRef}
           src={getVideoUrl(clip.scene_id)}
           className="w-full rounded-lg"
           controls
@@ -134,6 +139,32 @@ export function VideoPreview({ clip, isFavorited, onToggleFavorite, onClose, onS
               Show Julian
             </Button>
           </div>
+
+          {/* AirPlay — visible when a device is on the network */}
+          {airplayAvailable && (
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={showAirPlayPicker}
+              className="w-full"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={`mr-2 ${airplayActive ? "text-blue-500" : ""}`}
+              >
+                <path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1" />
+                <polygon points="12 15 17 21 7 21 12 15" />
+              </svg>
+              {airplayActive ? "AirPlay Connected" : "AirPlay"}
+            </Button>
+          )}
         </div>
       </div>
     </div>

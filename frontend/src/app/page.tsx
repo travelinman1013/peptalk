@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { searchClips, browseCategories, ClipResult, BrowseClip } from "@/lib/api";
 import { SearchBar } from "@/components/SearchBar";
@@ -59,16 +59,20 @@ export default function Home() {
     recordUsage(clip);
   }, [recordUsage]);
 
+  // Track whether to defer queue clearing until playback ends
+  const deferQueueClear = useRef(false);
+
   const handlePlayQueue = useCallback(() => {
     if (queue.length === 0) return;
     setPreviewClip(null);
     setJulianClips([...queue]);
-    // Record usage for each clip in queue
     for (const clip of queue) {
       recordUsage(clip);
     }
-    clearQueue();
-  }, [queue, clearQueue, recordUsage]);
+    // Defer clearing — JulianPlayer may be in AirPlay mini-bar mode
+    // where Sam wants to keep browsing and managing the queue
+    deferQueueClear.current = true;
+  }, [queue, recordUsage]);
 
   const handleSavePlaylist = useCallback((name: string) => {
     savePlaylist({ name, clips: queue });
@@ -85,7 +89,11 @@ export default function Home() {
 
   const handleExitJulian = useCallback(() => {
     setJulianClips([]);
-  }, []);
+    if (deferQueueClear.current) {
+      clearQueue();
+      deferQueueClear.current = false;
+    }
+  }, [clearQueue]);
 
   const isSearching = query.length > 0;
   const isPlaying = julianClips.length > 0;
