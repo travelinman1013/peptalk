@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build
+.next/
+out/
+build/
+dist/
+*.egg-info/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+*.egg
+
+# Data (large media files)
+backend/data/episodes/
+backend/data/clips/
+backend/data/thumbnails/
+
+# Intermediate pipeline artifacts
+backend/data/transcripts/
+backend/data/scenes/
+backend/data/summaries/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# PWA
+sw.js
+workbox-*.js
