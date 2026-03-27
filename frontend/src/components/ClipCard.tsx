@@ -3,20 +3,25 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ClipResult, getThumbnailUrl } from "@/lib/api";
+import { ClipResult, BrowseClip, isClipResult, getThumbnailUrl } from "@/lib/api";
+import { getClipLabel } from "@/lib/clip-labels";
+import { useQueue } from "@/lib/queue-context";
 
 interface ClipCardProps {
-  clip: ClipResult;
-  onPreview: (clip: ClipResult) => void;
-  onShowJulian: (clip: ClipResult) => void;
+  clip: ClipResult | BrowseClip;
+  onPreview: (clip: ClipResult | BrowseClip) => void;
+  onShowJulian: (clip: ClipResult | BrowseClip) => void;
   compact?: boolean;
 }
 
 export function ClipCard({ clip, onPreview, onShowJulian, compact }: ClipCardProps) {
-  const label =
-    clip.parent_trigger_phrases?.[0] ||
-    clip.narrative_summary ||
-    clip.scene_id;
+  const label = getClipLabel(clip);
+  const { addToQueue, isInQueue, queuePosition } = useQueue();
+  const inQueue = isInQueue(clip.scene_id);
+  const pos = queuePosition(clip.scene_id);
+
+  const energyLevel = clip.energy_level;
+  const activityTags = isClipResult(clip) ? clip.activity_tags : undefined;
 
   return (
     <Card className="group overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
@@ -46,6 +51,22 @@ export function ClipCard({ clip, onPreview, onShowJulian, compact }: ClipCardPro
         <span className="absolute bottom-2 right-2 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm">
           {Math.round(clip.duration)}s
         </span>
+
+        {/* Add to queue button */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            addToQueue(clip);
+          }}
+          className={`absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold transition-all ${
+            inQueue
+              ? "bg-primary text-primary-foreground"
+              : "bg-black/60 text-white opacity-0 group-hover:opacity-100"
+          }`}
+          aria-label={inQueue ? `In queue (${pos})` : "Add to queue"}
+        >
+          {inQueue ? pos : "+"}
+        </button>
       </button>
 
       {/* Content */}
@@ -56,12 +77,12 @@ export function ClipCard({ clip, onPreview, onShowJulian, compact }: ClipCardPro
 
         {!compact && (
           <div className="flex flex-wrap gap-1">
-            {clip.energy_level && (
+            {energyLevel && (
               <Badge variant="secondary" className="text-[10px] font-normal">
-                {clip.energy_level}
+                {energyLevel}
               </Badge>
             )}
-            {clip.activity_tags?.slice(0, 2).map((tag) => (
+            {activityTags?.slice(0, 2).map((tag) => (
               <Badge key={tag} variant="outline" className="text-[10px] font-normal">
                 {tag}
               </Badge>

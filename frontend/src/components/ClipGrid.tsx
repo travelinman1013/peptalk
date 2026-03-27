@@ -1,12 +1,12 @@
 "use client";
 
-import { ClipResult } from "@/lib/api";
+import { ClipResult, BrowseClip } from "@/lib/api";
 import { ClipCard } from "./ClipCard";
 
 interface ClipGridProps {
-  clips: ClipResult[];
-  onPreview: (clip: ClipResult) => void;
-  onShowJulian: (clip: ClipResult) => void;
+  clips: (ClipResult | BrowseClip)[];
+  onPreview: (clip: ClipResult | BrowseClip) => void;
+  onShowJulian: (clip: ClipResult | BrowseClip) => void;
 }
 
 export function ClipGrid({ clips, onPreview, onShowJulian }: ClipGridProps) {

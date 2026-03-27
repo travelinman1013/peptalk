@@ -46,6 +46,13 @@ export interface BrowseClip {
   energy_level: string;
   narrative_summary: string;
   characters_present: string[];
+  key_dialogue?: string[];
+  child_situations?: string[];
+  parent_trigger_phrases?: string[];
+}
+
+export function isClipResult(clip: ClipResult | BrowseClip): clip is ClipResult {
+  return "score" in clip;
 }
 
 export interface BrowseCategory {

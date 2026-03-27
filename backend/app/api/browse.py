@@ -72,6 +72,9 @@ def browse_categories(max_categories: int = 12) -> dict:
                 "energy_level": scene.get("energy_level", ""),
                 "narrative_summary": scene.get("narrative_summary", ""),
                 "characters_present": scene.get("characters_present", []),
+                "key_dialogue": scene.get("key_dialogue", []),
+                "child_situations": scene.get("child_situations", []),
+                "parent_trigger_phrases": scene.get("parent_trigger_phrases", []),
             })
 
         categories.append({

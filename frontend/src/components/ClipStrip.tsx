@@ -1,6 +1,8 @@
 "use client";
 
-import { BrowseClip, getThumbnailUrl, getVideoUrl } from "@/lib/api";
+import { BrowseClip, getThumbnailUrl } from "@/lib/api";
+import { getClipLabel } from "@/lib/clip-labels";
+import { useQueue } from "@/lib/queue-context";
 
 interface ClipStripProps {
   name: string;
@@ -11,7 +13,9 @@ interface ClipStripProps {
   onShowJulian: (clip: BrowseClip) => void;
 }
 
-export function ClipStrip({ name, count, clips, onPreview, onShowJulian }: ClipStripProps) {
+export function ClipStrip({ name, count, clips, onPreview }: ClipStripProps) {
+  const { addToQueue, isInQueue, queuePosition } = useQueue();
+
   return (
     <div className="space-y-2.5">
       {/* Header */}
@@ -27,36 +31,57 @@ export function ClipStrip({ name, count, clips, onPreview, onShowJulian }: ClipS
       {/* Horizontal scroll */}
       <div className="-mx-4 px-4">
         <div className="flex gap-2.5 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none">
-          {clips.map((clip) => (
-            <div
-              key={clip.scene_id}
-              className="flex-none snap-start"
-              style={{ width: "140px" }}
-            >
-              {/* Thumbnail */}
-              <button
-                onClick={() => onPreview(clip)}
-                className="group relative aspect-video w-full overflow-hidden rounded-lg bg-muted"
-                aria-label={`Preview: ${clip.label}`}
-              >
-                <img
-                  src={getThumbnailUrl(clip.scene_id)}
-                  alt={clip.label || clip.scene_id}
-                  className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-                <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1 py-0.5 text-[10px] font-medium text-white">
-                  {Math.round(clip.duration)}s
-                </span>
-              </button>
+          {clips.map((clip) => {
+            const inQueue = isInQueue(clip.scene_id);
+            const pos = queuePosition(clip.scene_id);
 
-              {/* Label */}
-              <p className="mt-1.5 line-clamp-2 text-xs font-medium leading-tight">
-                {clip.label || clip.narrative_summary}
-              </p>
-            </div>
-          ))}
+            return (
+              <div
+                key={clip.scene_id}
+                className="flex-none snap-start"
+                style={{ width: "140px" }}
+              >
+                {/* Thumbnail */}
+                <button
+                  onClick={() => onPreview(clip)}
+                  className="group relative aspect-video w-full overflow-hidden rounded-lg bg-muted"
+                  aria-label={`Preview: ${getClipLabel(clip, 60)}`}
+                >
+                  <img
+                    src={getThumbnailUrl(clip.scene_id)}
+                    alt={getClipLabel(clip, 60)}
+                    className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                  <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1 py-0.5 text-[10px] font-medium text-white">
+                    {Math.round(clip.duration)}s
+                  </span>
+
+                  {/* Add to queue button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      addToQueue(clip);
+                    }}
+                    className={`absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold transition-all ${
+                      inQueue
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-black/60 text-white opacity-0 group-hover:opacity-100"
+                    }`}
+                    aria-label={inQueue ? `In queue (${pos})` : "Add to queue"}
+                  >
+                    {inQueue ? pos : "+"}
+                  </button>
+                </button>
+
+                {/* Label */}
+                <p className="mt-1.5 line-clamp-2 text-xs font-medium leading-tight">
+                  {getClipLabel(clip, 60)}
+                </p>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

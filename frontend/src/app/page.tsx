@@ -8,11 +8,23 @@ import { ClipGrid } from "@/components/ClipGrid";
 import { ClipStrip } from "@/components/ClipStrip";
 import { VideoPreview } from "@/components/VideoPreview";
 import { JulianPlayer } from "@/components/JulianPlayer";
+import { QueueStrip } from "@/components/QueueStrip";
+import { PlaylistStrip } from "@/components/PlaylistStrip";
+import { useFavorites } from "@/lib/hooks/use-favorites";
+import { useRecentlyUsed } from "@/lib/hooks/use-recently-used";
+import { usePlaylists } from "@/lib/hooks/use-playlists";
+import { useQueue } from "@/lib/queue-context";
 
 export default function Home() {
   const [query, setQuery] = useState("");
   const [previewClip, setPreviewClip] = useState<ClipResult | BrowseClip | null>(null);
-  const [julianClip, setJulianClip] = useState<ClipResult | BrowseClip | null>(null);
+  const [julianClips, setJulianClips] = useState<(ClipResult | BrowseClip)[]>([]);
+
+  // Persistence hooks
+  const { favorites, favoriteIds, toggleFavorite } = useFavorites();
+  const { recentClips, recordUsage } = useRecentlyUsed(20);
+  const { playlists, savePlaylist, deletePlaylist, markPlayed } = usePlaylists();
+  const { queue, clearQueue } = useQueue();
 
   // Search results
   const { data: searchData, isLoading: searchLoading } = useQuery({
@@ -40,20 +52,46 @@ export default function Home() {
 
   const handleShowJulian = useCallback((clip: ClipResult | BrowseClip) => {
     setPreviewClip(null);
-    setJulianClip(clip);
-  }, []);
+    setJulianClips([clip]);
+    recordUsage(clip);
+  }, [recordUsage]);
+
+  const handlePlayQueue = useCallback(() => {
+    if (queue.length === 0) return;
+    setPreviewClip(null);
+    setJulianClips([...queue]);
+    // Record usage for each clip in queue
+    for (const clip of queue) {
+      recordUsage(clip);
+    }
+    clearQueue();
+  }, [queue, clearQueue, recordUsage]);
+
+  const handleSavePlaylist = useCallback((name: string) => {
+    savePlaylist({ name, clips: queue });
+  }, [queue, savePlaylist]);
+
+  const handlePlayPlaylist = useCallback((playlist: { id: string; clips: BrowseClip[] }) => {
+    setPreviewClip(null);
+    setJulianClips([...playlist.clips]);
+    markPlayed(playlist.id);
+    for (const clip of playlist.clips) {
+      recordUsage(clip);
+    }
+  }, [markPlayed, recordUsage]);
 
   const handleExitJulian = useCallback(() => {
-    setJulianClip(null);
+    setJulianClips([]);
   }, []);
 
   const isSearching = query.length > 0;
+  const isPlaying = julianClips.length > 0;
 
   return (
     <>
       {/* Julian Player — fullscreen, no chrome */}
-      {julianClip && (
-        <JulianPlayer clip={julianClip} onExit={handleExitJulian} />
+      {isPlaying && (
+        <JulianPlayer clips={julianClips} onExit={handleExitJulian} />
       )}
 
       {/* Main app */}
@@ -65,6 +103,9 @@ export default function Home() {
           </h1>
           <SearchBar onSearch={handleSearch} isLoading={searchLoading} />
         </header>
+
+        {/* Queue strip — below header */}
+        <QueueStrip onPlayAll={handlePlayQueue} onSavePlaylist={handleSavePlaylist} />
 
         {/* Content */}
         <main className="flex-1 px-4 py-4">
@@ -83,6 +124,40 @@ export default function Home() {
           ) : (
             /* Category browse */
             <div className="space-y-6">
+              {/* Recently Used */}
+              {recentClips.length > 0 && (
+                <ClipStrip
+                  name="Recently Used"
+                  tag="_recent"
+                  count={recentClips.length}
+                  clips={recentClips}
+                  onPreview={handlePreview}
+                  onShowJulian={handleShowJulian}
+                />
+              )}
+
+              {/* Saved Playlists */}
+              {playlists.length > 0 && (
+                <PlaylistStrip
+                  playlists={playlists}
+                  onPlay={handlePlayPlaylist}
+                  onDelete={deletePlaylist}
+                />
+              )}
+
+              {/* Favorites */}
+              {favorites.length > 0 && (
+                <ClipStrip
+                  name="Favorites"
+                  tag="_favorites"
+                  count={favorites.length}
+                  clips={favorites}
+                  onPreview={handlePreview}
+                  onShowJulian={handleShowJulian}
+                />
+              )}
+
+              {/* API categories */}
               {categories.length > 0 ? (
                 categories.map((cat) => (
                   <ClipStrip
@@ -96,14 +171,19 @@ export default function Home() {
                   />
                 ))
               ) : (
-                <div className="py-20 text-center">
-                  <p className="text-lg font-medium text-muted-foreground">
-                    What would you like to say to Julian?
-                  </p>
-                  <p className="mt-2 text-sm text-muted-foreground/70">
-                    Type a phrase above to find the right clip
-                  </p>
-                </div>
+                // Only show empty state if there are no personal strips either
+                recentClips.length === 0 &&
+                  favorites.length === 0 &&
+                  playlists.length === 0 && (
+                    <div className="py-20 text-center">
+                      <p className="text-lg font-medium text-muted-foreground">
+                        What would you like to say to Julian?
+                      </p>
+                      <p className="mt-2 text-sm text-muted-foreground/70">
+                        Type a phrase above to find the right clip
+                      </p>
+                    </div>
+                  )
               )}
             </div>
           )}
@@ -114,6 +194,8 @@ export default function Home() {
       {previewClip && (
         <VideoPreview
           clip={previewClip}
+          isFavorited={favoriteIds.has(previewClip.scene_id)}
+          onToggleFavorite={() => toggleFavorite(previewClip)}
           onClose={() => setPreviewClip(null)}
           onShowJulian={() => handleShowJulian(previewClip)}
         />
