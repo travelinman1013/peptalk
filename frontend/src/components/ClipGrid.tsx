@@ -12,9 +12,9 @@ interface ClipGridProps {
 export function ClipGrid({ clips, onPreview, onShowJulian }: ClipGridProps) {
   if (clips.length === 0) {
     return (
-      <div className="py-12 text-center text-gray-400">
-        <p className="text-lg">No clips found</p>
-        <p className="mt-1 text-sm">Try a different phrase</p>
+      <div className="py-16 text-center">
+        <p className="text-lg font-medium text-muted-foreground">No clips found</p>
+        <p className="mt-1 text-sm text-muted-foreground/70">Try a different phrase</p>
       </div>
     );
   }

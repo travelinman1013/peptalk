@@ -35,13 +35,47 @@ export interface SearchResponse {
   groups: SearchGroup[];
 }
 
+export interface BrowseClip {
+  scene_id: string;
+  episode_id: string;
+  thumbnail_url: string;
+  clip_url: string;
+  label: string;
+  duration: number;
+  emotional_tone: string;
+  energy_level: string;
+  narrative_summary: string;
+  characters_present: string[];
+}
+
+export interface BrowseCategory {
+  name: string;
+  tag: string;
+  count: number;
+  clips: BrowseClip[];
+}
+
+export interface BrowseResponse {
+  categories: BrowseCategory[];
+  all_clips_count: number;
+}
+
 export async function searchClips(
   query: string,
-  topK: number = 5
+  topK: number = 12
 ): Promise<SearchResponse> {
   const params = new URLSearchParams({ q: query, top_k: String(topK) });
   const res = await fetch(`${API_BASE}/search?${params}`);
   if (!res.ok) throw new Error(`Search failed: ${res.status}`);
+  return res.json();
+}
+
+export async function browseCategories(
+  maxCategories: number = 12
+): Promise<BrowseResponse> {
+  const params = new URLSearchParams({ max_categories: String(maxCategories) });
+  const res = await fetch(`${API_BASE}/browse?${params}`);
+  if (!res.ok) throw new Error(`Browse failed: ${res.status}`);
   return res.json();
 }
 

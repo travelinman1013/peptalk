@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { Input } from "@/components/ui/input";
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
@@ -16,13 +17,9 @@ export function SearchBar({ onSearch, isLoading }: SearchBarProps) {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = e.target.value;
       setValue(newValue);
-
       if (debounceRef.current) clearTimeout(debounceRef.current);
-
       if (newValue.trim()) {
-        debounceRef.current = setTimeout(() => {
-          onSearch(newValue.trim());
-        }, 300);
+        debounceRef.current = setTimeout(() => onSearch(newValue.trim()), 300);
       }
     },
     [onSearch]
@@ -42,8 +39,9 @@ export function SearchBar({ onSearch, isLoading }: SearchBarProps) {
 
   const handleClear = useCallback(() => {
     setValue("");
+    onSearch("");
     inputRef.current?.focus();
-  }, []);
+  }, [onSearch]);
 
   useEffect(() => {
     return () => {
@@ -53,39 +51,50 @@ export function SearchBar({ onSearch, isLoading }: SearchBarProps) {
 
   return (
     <form onSubmit={handleSubmit} className="relative w-full">
-      <input
+      {/* Search icon */}
+      <svg
+        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.3-4.3" />
+      </svg>
+
+      <Input
         ref={inputRef}
         type="text"
         value={value}
         onChange={handleChange}
-        placeholder="What do you want to say? (e.g., it's time for bed)"
-        className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 pr-12 text-base shadow-sm placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder:text-gray-500"
+        placeholder='What do you want to say? (e.g., "time for bed")'
+        className="h-12 rounded-xl pl-10 pr-10 text-base"
         autoComplete="off"
         enterKeyHint="search"
         aria-label="Search for a clip to play"
       />
+
       {value && (
         <button
           type="button"
           onClick={handleClear}
-          className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground"
           aria-label="Clear search"
         >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M6 6l8 8M6 14l8-8" />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
       )}
+
       {isLoading && (
-        <div className="absolute right-14 top-1/2 -translate-y-1/2">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500" />
+        <div className="absolute right-10 top-1/2 -translate-y-1/2">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-primary" />
         </div>
       )}
     </form>

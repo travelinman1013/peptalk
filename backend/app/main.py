@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.browse import router as browse_router
 from app.api.clips import router as clips_router
 from app.api.search import router as search_router
 from app.core.config import settings
@@ -33,6 +34,7 @@ app.add_middleware(
 
 app.include_router(search_router)
 app.include_router(clips_router)
+app.include_router(browse_router)
 
 
 @app.get("/health")
