@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ClipResult, BrowseClip, isClipResult, getThumbnailUrl } from "@/lib/api";
-import { getClipLabel } from "@/lib/clip-labels";
+import { getClipTitle, getClipSubtitle, getClipLabel } from "@/lib/clip-labels";
 import { useQueue } from "@/lib/queue-context";
 
 interface ClipCardProps {
@@ -71,9 +71,14 @@ export function ClipCard({ clip, onPreview, onShowJulian, compact }: ClipCardPro
 
       {/* Content */}
       <div className={`flex flex-col gap-2 ${compact ? "p-2.5" : "p-3"}`}>
-        <p className="line-clamp-2 text-sm font-semibold leading-snug">
-          {label}
+        <p className="line-clamp-1 text-sm font-semibold leading-snug">
+          {getClipTitle(clip)}
         </p>
+        {getClipSubtitle(clip) && (
+          <p className="line-clamp-1 text-xs leading-snug text-muted-foreground">
+            {getClipSubtitle(clip)}
+          </p>
+        )}
 
         {!compact && (
           <div className="flex flex-wrap gap-1">

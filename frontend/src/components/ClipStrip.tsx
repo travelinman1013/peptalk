@@ -1,7 +1,7 @@
 "use client";
 
 import { BrowseClip, getThumbnailUrl } from "@/lib/api";
-import { getClipLabel } from "@/lib/clip-labels";
+import { getClipTitle, getClipSubtitle, getClipLabel } from "@/lib/clip-labels";
 import { useQueue } from "@/lib/queue-context";
 
 interface ClipStripProps {
@@ -75,10 +75,15 @@ export function ClipStrip({ name, count, clips, onPreview }: ClipStripProps) {
                   </button>
                 </button>
 
-                {/* Label */}
-                <p className="mt-1.5 line-clamp-2 text-xs font-medium leading-tight">
-                  {getClipLabel(clip, 60)}
+                {/* Title + subtitle */}
+                <p className="mt-1.5 line-clamp-1 text-xs font-medium leading-tight">
+                  {getClipTitle(clip)}
                 </p>
+                {getClipSubtitle(clip) && (
+                  <p className="line-clamp-1 text-[10px] leading-tight text-muted-foreground">
+                    {getClipSubtitle(clip)}
+                  </p>
+                )}
               </div>
             );
           })}

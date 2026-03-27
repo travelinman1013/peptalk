@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ClipResult, BrowseClip, isClipResult, getVideoUrl } from "@/lib/api";
-import { getClipLabel } from "@/lib/clip-labels";
+import { getClipTitle, getClipSubtitle, getClipLabel } from "@/lib/clip-labels";
 import { useQueue } from "@/lib/queue-context";
 
 interface VideoPreviewProps {
@@ -17,7 +17,9 @@ interface VideoPreviewProps {
 export function VideoPreview({ clip, isFavorited, onToggleFavorite, onClose, onShowJulian }: VideoPreviewProps) {
   const { addToQueue, isInQueue } = useQueue();
   const inQueue = isInQueue(clip.scene_id);
-  const label = getClipLabel(clip);
+  const title = getClipTitle(clip);
+  const subtitle = getClipSubtitle(clip);
+  const label = getClipLabel(clip); // for aria/alt text
   const characters = clip.characters_present || [];
   const emotionalTone = clip.emotional_tone;
 
@@ -25,10 +27,6 @@ export function VideoPreview({ clip, isFavorited, onToggleFavorite, onClose, onS
   const keyDialogue = isClipResult(clip)
     ? clip.key_dialogue
     : clip.key_dialogue ?? [];
-
-  // Show narrative_summary only if meaningfully different from label
-  const summary = clip.narrative_summary;
-  const showSummary = summary && summary !== label && !label.startsWith(summary);
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card shadow-2xl">
@@ -62,9 +60,9 @@ export function VideoPreview({ clip, isFavorited, onToggleFavorite, onClose, onS
 
         {/* Info */}
         <div className="mt-2.5 space-y-2">
-          {/* Label + favorite heart */}
+          {/* Title + favorite heart */}
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold flex-1">{label}</p>
+            <p className="text-sm font-semibold flex-1">{title}</p>
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -87,10 +85,10 @@ export function VideoPreview({ clip, isFavorited, onToggleFavorite, onClose, onS
             </button>
           </div>
 
-          {/* Narrative summary — only if different from label */}
-          {showSummary && (
-            <p className="text-xs text-muted-foreground line-clamp-3">
-              {summary}
+          {/* Descriptive subtitle */}
+          {subtitle && (
+            <p className="text-xs text-muted-foreground line-clamp-2">
+              {subtitle}
             </p>
           )}
 
