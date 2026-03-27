@@ -15,6 +15,7 @@ import { useRecentlyUsed } from "@/lib/hooks/use-recently-used";
 import { usePlaylists } from "@/lib/hooks/use-playlists";
 import { useQueue } from "@/lib/queue-context";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { HelpMenu } from "@/components/HelpMenu";
 import { ClipSuggestions } from "@/components/ClipSuggestions";
 
 export default function Home() {
@@ -101,6 +102,9 @@ export default function Home() {
         {/* Header */}
         <header className="sticky top-0 z-30 border-b border-border/50 bg-background/80 px-4 pb-3 pt-4 backdrop-blur-xl">
           <div className="relative mb-3 flex items-center justify-center">
+            <div className="absolute left-0">
+              <HelpMenu />
+            </div>
             <h1 className="text-lg font-bold tracking-tight">PepTalk</h1>
             <div className="absolute right-0">
               <ThemeToggle />
