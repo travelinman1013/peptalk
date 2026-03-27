@@ -122,6 +122,15 @@ export function HelpMenu() {
               </ol>
             </section>
 
+            <section className="rounded-lg bg-muted/50 p-3">
+              <h3 className="mb-1 font-semibold">📺 AirPlay</h3>
+              <p className="text-muted-foreground">
+                Tap the AirPlay icon on any clip to stream it to your TV.
+                A miniplayer stays on your phone so you can keep browsing
+                and queuing clips while Julian watches on the big screen.
+              </p>
+            </section>
+
             <section>
               <h3 className="mb-1.5 font-semibold">Features</h3>
               <ul className="space-y-1 text-muted-foreground">
@@ -148,7 +157,7 @@ export function HelpMenu() {
               <h3 className="mb-1.5 font-semibold">Tips</h3>
               <ul className="space-y-1 text-muted-foreground">
                 <li>
-                  Triple-tap or hold <strong className="text-card-foreground">X</strong> to
+                  Triple-tap or tap <strong className="text-card-foreground">X</strong> to
                   exit the fullscreen player
                 </li>
                 <li>
