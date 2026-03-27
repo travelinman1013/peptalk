@@ -28,10 +28,11 @@ def extract_clip(
         "-ss", str(start_time),
         "-i", str(video_path),
         "-t", str(end_time - start_time),
-        # Video: H.264 baseline for iOS
+        # Video: H.264 baseline for iOS (yuv420p for 10-bit source compat)
         "-c:v", "libx264",
         "-profile:v", "baseline",
         "-level", "3.0",
+        "-pix_fmt", "yuv420p",
         "-b:v", settings.clip_video_bitrate,
         "-vf", f"scale={settings.clip_resolution}",
         "-r", str(settings.clip_fps),
