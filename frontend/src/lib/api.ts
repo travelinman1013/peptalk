@@ -114,3 +114,24 @@ export function getVideoUrl(sceneId: string): string {
 export function getThumbnailUrl(sceneId: string): string {
   return `${API_BASE}/clips/${sceneId}/thumbnail`;
 }
+
+export async function hideClip(sceneId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/clips/hide/${sceneId}`, { method: "POST" });
+  if (!res.ok) throw new Error(`Hide failed: ${res.status}`);
+}
+
+export async function unhideClip(sceneId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/clips/unhide/${sceneId}`, { method: "POST" });
+  if (!res.ok) throw new Error(`Unhide failed: ${res.status}`);
+}
+
+export interface HiddenClipsResponse {
+  clips: BrowseClip[];
+  count: number;
+}
+
+export async function getHiddenClips(): Promise<HiddenClipsResponse> {
+  const res = await fetch(`${API_BASE}/clips/hidden`);
+  if (!res.ok) throw new Error(`Hidden clips failed: ${res.status}`);
+  return res.json();
+}

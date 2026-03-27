@@ -5,7 +5,12 @@ import { Badge } from "@/components/ui/badge";
 
 const STORAGE_KEY = "peptalk-help-seen";
 
-export function HelpMenu() {
+interface HelpMenuProps {
+  hiddenCount?: number;
+  onShowHidden?: () => void;
+}
+
+export function HelpMenu({ hiddenCount = 0, onShowHidden }: HelpMenuProps) {
   const [open, setOpen] = useState(false);
   const [isNew, setIsNew] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -165,6 +170,40 @@ export function HelpMenu() {
                 </li>
               </ul>
             </section>
+
+            {onShowHidden && (
+              <button
+                onClick={() => {
+                  onShowHidden();
+                  setOpen(false);
+                }}
+                className="flex w-full items-center justify-between rounded-xl border border-border/50 bg-muted/30 px-3 py-2.5 text-sm transition-colors hover:bg-muted/60"
+              >
+                <span className="flex items-center gap-2">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-muted-foreground"
+                  >
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                  <span className="font-medium">Hidden Clips</span>
+                </span>
+                {hiddenCount > 0 && (
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold tabular-nums">
+                    {hiddenCount}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
         </div>
       )}

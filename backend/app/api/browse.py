@@ -49,6 +49,8 @@ def browse_categories(max_categories: int = 12) -> dict:
     tag_to_scenes: dict[str, list[int]] = {}
 
     for i, scene in enumerate(search_engine.scenes):
+        if scene["scene_id"] in search_engine.hidden_ids:
+            continue
         tags = scene.get("activity_tags", [])
         for tag in tags:
             tag_counter[tag] += 1
@@ -86,5 +88,5 @@ def browse_categories(max_categories: int = 12) -> dict:
 
     return {
         "categories": categories,
-        "all_clips_count": len(search_engine.scenes),
+        "all_clips_count": len(search_engine.scenes) - len(search_engine.hidden_ids),
     }

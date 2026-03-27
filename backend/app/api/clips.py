@@ -10,6 +10,56 @@ from app.core.search_engine import search_engine
 router = APIRouter(prefix="/clips")
 
 
+# --- Hidden clip management (before /{scene_id} catch-all) ---
+
+
+@router.get("/hidden")
+def get_hidden_clips() -> dict:
+    clips = search_engine.get_hidden_scenes()
+    return {
+        "clips": [
+            {
+                "scene_id": s["scene_id"],
+                "episode_id": s.get("episode_id", ""),
+                "thumbnail_url": f"/clips/{s['scene_id']}/thumbnail",
+                "clip_url": f"/clips/{s['scene_id']}/video",
+                "label": (s.get("parent_trigger_phrases") or [""])[0],
+                "duration": s.get("duration", 0),
+                "emotional_tone": s.get("emotional_tone", ""),
+                "energy_level": s.get("energy_level", ""),
+                "narrative_summary": s.get("narrative_summary", ""),
+                "characters_present": s.get("characters_present", []),
+                "key_dialogue": s.get("key_dialogue", []),
+                "child_situations": s.get("child_situations", []),
+                "parent_trigger_phrases": s.get("parent_trigger_phrases", []),
+            }
+            for s in clips
+        ],
+        "count": len(clips),
+    }
+
+
+@router.post("/hide/{scene_id}")
+def hide_clip(scene_id: str) -> dict:
+    scene = search_engine.get_scene(scene_id)
+    if scene is None:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    search_engine.hide_scene(scene_id)
+    return {"hidden": True}
+
+
+@router.post("/unhide/{scene_id}")
+def unhide_clip(scene_id: str) -> dict:
+    scene = search_engine.get_scene(scene_id)
+    if scene is None:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    search_engine.unhide_scene(scene_id)
+    return {"hidden": False}
+
+
+# --- Existing endpoints ---
+
+
 @router.get("/{scene_id}")
 def get_clip_metadata(scene_id: str) -> dict:
     scene = search_engine.get_scene(scene_id)
@@ -81,7 +131,9 @@ def get_clip_suggestions(scene_id: str) -> dict:
     # Next clips in the same episode (sorted by start_time)
     same_episode = [
         s for s in search_engine.scenes
-        if s["episode_id"] == episode_id and s["start_time"] > start_time
+        if s["episode_id"] == episode_id
+        and s["start_time"] > start_time
+        and s["scene_id"] not in search_engine.hidden_ids
     ]
     same_episode.sort(key=lambda s: s["start_time"])
     next_in_episode = []
@@ -102,6 +154,8 @@ def get_clip_suggestions(scene_id: str) -> dict:
         for i in ranked:
             candidate = search_engine.scenes[i]
             if candidate["episode_id"] == episode_id:
+                continue
+            if candidate["scene_id"] in search_engine.hidden_ids:
                 continue
             clip = candidate.copy()
             clip.pop("embedding", None)

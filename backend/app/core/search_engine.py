@@ -14,6 +14,7 @@ class SearchEngine:
         self.retrieval_embeddings: np.ndarray | None = None
         self.content_embeddings: np.ndarray | None = None
         self.model: SentenceTransformer | None = None
+        self.hidden_ids: set[str] = set()
 
     def load(self) -> None:
         scenes_path = settings.db_dir / "scenes.json"
@@ -37,6 +38,12 @@ class SearchEngine:
 
         self.model = SentenceTransformer(settings.embedding_model)
 
+        # Load hidden clip IDs
+        hidden_path = settings.db_dir / "hidden.json"
+        if hidden_path.exists():
+            with open(hidden_path) as f:
+                self.hidden_ids = set(json.load(f))
+
     def search(self, query: str, top_k: int = 5) -> list[dict]:
         if self.model is None or self.retrieval_embeddings is None:
             return []
@@ -52,17 +59,23 @@ class SearchEngine:
             + settings.content_weight * content_scores
         )
 
-        top_indices = np.argsort(combined)[-top_k:][::-1]
+        # Oversample to account for hidden clips being filtered out
+        fetch_k = min(top_k * 3, len(self.scenes))
+        top_indices = np.argsort(combined)[-fetch_k:][::-1]
 
         results = []
         for idx in top_indices:
-            scene = self.scenes[idx].copy()
-            scene["score"] = float(combined[idx])
-            scene["clip_url"] = f"/clips/{scene['scene_id']}/video"
-            scene["thumbnail_url"] = f"/clips/{scene['scene_id']}/thumbnail"
-            # Remove embedding from response
-            scene.pop("embedding", None)
-            results.append(scene)
+            scene = self.scenes[idx]
+            if scene["scene_id"] in self.hidden_ids:
+                continue
+            entry = scene.copy()
+            entry["score"] = float(combined[idx])
+            entry["clip_url"] = f"/clips/{scene['scene_id']}/video"
+            entry["thumbnail_url"] = f"/clips/{scene['scene_id']}/thumbnail"
+            entry.pop("embedding", None)
+            results.append(entry)
+            if len(results) >= top_k:
+                break
 
         return results
 
@@ -73,6 +86,34 @@ class SearchEngine:
         scene = self.scenes[idx].copy()
         scene.pop("embedding", None)
         return scene
+
+    def hide_scene(self, scene_id: str) -> bool:
+        if scene_id not in self.scene_index:
+            return False
+        added = scene_id not in self.hidden_ids
+        self.hidden_ids.add(scene_id)
+        self._save_hidden()
+        return added
+
+    def unhide_scene(self, scene_id: str) -> bool:
+        if scene_id not in self.hidden_ids:
+            return False
+        self.hidden_ids.discard(scene_id)
+        self._save_hidden()
+        return True
+
+    def get_hidden_scenes(self) -> list[dict]:
+        results = []
+        for scene_id in sorted(self.hidden_ids):
+            scene = self.get_scene(scene_id)
+            if scene:
+                results.append(scene)
+        return results
+
+    def _save_hidden(self) -> None:
+        hidden_path = settings.db_dir / "hidden.json"
+        with open(hidden_path, "w") as f:
+            json.dump(sorted(self.hidden_ids), f, indent=2)
 
     @staticmethod
     def _normalize(matrix: np.ndarray) -> np.ndarray:

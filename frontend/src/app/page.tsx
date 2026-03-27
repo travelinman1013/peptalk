@@ -17,18 +17,22 @@ import { usePlaylists } from "@/lib/hooks/use-playlists";
 import { useQueue } from "@/lib/queue-context";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { HelpMenu } from "@/components/HelpMenu";
+import { HiddenClipsSheet } from "@/components/HiddenClipsSheet";
 import { ClipSuggestions } from "@/components/ClipSuggestions";
+import { useHidden } from "@/lib/hooks/use-hidden";
 
 export default function Home() {
   const [query, setQuery] = useState("");
   const [previewClip, setPreviewClip] = useState<ClipResult | BrowseClip | null>(null);
   const [julianClips, setJulianClips] = useState<(ClipResult | BrowseClip)[]>([]);
+  const [showHiddenSheet, setShowHiddenSheet] = useState(false);
 
   // Persistence hooks
   const { favorites, favoriteIds, toggleFavorite } = useFavorites();
   const { recentClips, recordUsage } = useRecentlyUsed(20);
   const { playlists, savePlaylist, deletePlaylist, markPlayed } = usePlaylists();
   const { queue, clearQueue } = useQueue();
+  const { hiddenCount, hideClip, isHidden } = useHidden();
 
   // Search results
   const { data: searchData, isLoading: searchLoading, isError: searchError, refetch: refetchSearch } = useQuery({
@@ -113,7 +117,7 @@ export default function Home() {
           <div className="mx-auto max-w-2xl">
             <div className="relative mb-3 flex items-center justify-center">
               <div className="absolute left-0">
-                <HelpMenu />
+                <HelpMenu hiddenCount={hiddenCount} onShowHidden={() => setShowHiddenSheet(true)} />
               </div>
               <h1 className="font-heading text-xl font-extrabold tracking-tight">
                 <span className="text-primary">Pep</span>Talk
@@ -266,12 +270,22 @@ export default function Home() {
       {/* Clip suggestions — after adding to queue */}
       {!previewClip && <ClipSuggestions />}
 
+      {/* Hidden Clips management sheet */}
+      {showHiddenSheet && (
+        <HiddenClipsSheet onClose={() => setShowHiddenSheet(false)} />
+      )}
+
       {/* Video Preview — bottom sheet */}
       {previewClip && (
         <VideoPreview
           clip={previewClip}
           isFavorited={favoriteIds.has(previewClip.scene_id)}
+          isHidden={isHidden(previewClip.scene_id)}
           onToggleFavorite={() => toggleFavorite(previewClip)}
+          onHide={() => {
+            hideClip(previewClip.scene_id);
+            setPreviewClip(null);
+          }}
           onClose={() => setPreviewClip(null)}
           onShowJulian={() => handleShowJulian(previewClip)}
         />
