@@ -23,6 +23,7 @@ class SearchEngine:
         self.content_embeddings: np.ndarray | None = None
         self.model: SentenceTransformer | None = None
         self.hidden_ids: set[str] = set()
+        self._query_cache: dict[str, np.ndarray] = {}
 
     def load(self) -> None:
         scenes_path = settings.db_dir / "scenes.json"
@@ -56,8 +57,15 @@ class SearchEngine:
         if self.model is None or self.retrieval_embeddings is None:
             return []
 
-        query_embedding = self.model.encode(query, convert_to_numpy=True)
-        query_embedding = query_embedding / np.linalg.norm(query_embedding)
+        cache_key = query.strip().lower()
+        if cache_key in self._query_cache:
+            query_embedding = self._query_cache[cache_key]
+        else:
+            query_embedding = self.model.encode(query, convert_to_numpy=True)
+            query_embedding = query_embedding / np.linalg.norm(query_embedding)
+            if len(self._query_cache) >= 1000:
+                self._query_cache.clear()
+            self._query_cache[cache_key] = query_embedding
 
         retrieval_scores = self.retrieval_embeddings @ query_embedding
         content_scores = self.content_embeddings @ query_embedding

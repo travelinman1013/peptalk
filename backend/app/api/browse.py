@@ -8,6 +8,17 @@ from app.core.search_engine import media_urls, search_engine
 
 router = APIRouter()
 
+# Server-side response cache — invalidated on hide/unhide
+_browse_cache: dict[tuple, dict] = {}
+_cache_version: int = 0
+
+
+def invalidate_browse_cache() -> None:
+    """Clear browse cache. Call when clips are hidden/unhidden."""
+    global _cache_version
+    _cache_version += 1
+    _browse_cache.clear()
+
 # Map raw tags to display-friendly category names
 TAG_DISPLAY_NAMES: dict[str, str] = {
     "shopping": "Shopping & Errands",
@@ -96,9 +107,21 @@ def browse_categories(
     season_set = set(seasons) if seasons else None
     tag_set = set(tags) if tags else None
 
-    # Count tag frequency across filtered scenes
+    # Check response cache
+    cache_key = (
+        tuple(sorted(seasons)) if seasons else (),
+        tuple(sorted(tags)) if tags else (),
+        max_categories,
+        clips_per_category,
+        _cache_version,
+    )
+    if cache_key in _browse_cache:
+        return _browse_cache[cache_key]
+
+    # Count tag frequency across filtered scenes + collect seasons in one pass
     tag_counter: Counter[str] = Counter()
     tag_to_scenes: dict[str, list[int]] = {}
+    season_counts: Counter[int] = Counter()
     filtered_count = 0
     total_count = 0
 
@@ -108,7 +131,10 @@ def browse_categories(
         total_count += 1
 
         episode_id = scene.get("episode_id", "")
-        if season_set and _season_from_episode_id(episode_id) not in season_set:
+        season = _season_from_episode_id(episode_id)
+        season_counts[season] += 1
+
+        if season_set and season not in season_set:
             continue
 
         scene_tags = scene.get("activity_tags", [])
@@ -137,12 +163,6 @@ def browse_categories(
             "clips": clips,
         })
 
-    # Build available seasons (always static — not filtered by tag selection)
-    season_counts: Counter[int] = Counter()
-    for scene in search_engine.scenes:
-        if scene["scene_id"] in search_engine.hidden_ids:
-            continue
-        season_counts[_season_from_episode_id(scene.get("episode_id", ""))] += 1
     available_seasons = sorted(season_counts.keys())
 
     # Available tags reflect current season filter (dynamic counts)
@@ -151,10 +171,12 @@ def browse_categories(
         for tag, count in tag_counter.most_common(20)
     ]
 
-    return {
+    result = {
         "categories": categories,
         "filtered_clips_count": filtered_count,
         "total_clips_count": total_count,
         "available_seasons": available_seasons,
         "available_tags": available_tags,
     }
+    _browse_cache[cache_key] = result
+    return result

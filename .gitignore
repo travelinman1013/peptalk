@@ -50,6 +50,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# PWA
-sw.js
+# PWA (generated service workers, but keep our handwritten one)
+!frontend/public/sw.js
 workbox-*.js

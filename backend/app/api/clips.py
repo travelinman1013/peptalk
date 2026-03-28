@@ -4,7 +4,7 @@ import numpy as np
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 
-from app.api.browse import serialize_browse_clip
+from app.api.browse import invalidate_browse_cache, serialize_browse_clip
 from app.core.config import settings
 from app.core.search_engine import media_urls, search_engine
 
@@ -29,6 +29,7 @@ def hide_clip(scene_id: str) -> dict:
     if scene is None:
         raise HTTPException(status_code=404, detail="Clip not found")
     search_engine.hide_scene(scene_id)
+    invalidate_browse_cache()
     return {"hidden": True}
 
 
@@ -38,6 +39,7 @@ def unhide_clip(scene_id: str) -> dict:
     if scene is None:
         raise HTTPException(status_code=404, detail="Clip not found")
     search_engine.unhide_scene(scene_id)
+    invalidate_browse_cache()
     return {"hidden": False}
 
 
@@ -134,7 +136,9 @@ def get_clip_suggestions(scene_id: str) -> dict:
     if idx is not None and search_engine.retrieval_embeddings is not None:
         query_vec = search_engine.retrieval_embeddings[idx]
         scores = search_engine.retrieval_embeddings @ query_vec
-        ranked = np.argsort(scores)[::-1]
+        k = min(20, len(scores))
+        top_k_indices = np.argpartition(scores, -k)[-k:]
+        ranked = top_k_indices[np.argsort(scores[top_k_indices])[::-1]]
         for i in ranked:
             candidate = search_engine.scenes[i]
             if candidate["episode_id"] == episode_id:
