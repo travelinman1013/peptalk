@@ -108,7 +108,7 @@ def run_pipeline(episode_paths: list[Path], workers: int = 1) -> None:
                 episode_id = get_episode_id(video_path)
                 episode_title = _get_episode_title(video_path)
                 print(f"\n[{i}/{total}] {video_path.name} ({episode_id})")
-                result = process_episode_worker(str(video_path), episode_id, episode_title)
+                result = process_episode_worker(str(video_path), episode_id, episode_title, num_workers=1)
                 results.append(result)
                 _print_result(result, i, total)
         else:
@@ -123,6 +123,7 @@ def run_pipeline(episode_paths: list[Path], workers: int = 1) -> None:
                         str(video_path),
                         episode_id,
                         episode_title,
+                        num_workers=workers,
                     )
                     future_to_path[future] = video_path
 

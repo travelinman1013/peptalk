@@ -13,7 +13,7 @@ from pathlib import Path
 from app.ingestion.chunk import chunk_episode
 from app.ingestion.extract import extract_episode_clips
 from app.ingestion.state import load_episode_state, save_episode_state
-from app.ingestion.summarize import summarize_episode
+from app.ingestion.summarize import configure_rate_limit, summarize_episode
 from app.ingestion.transcribe import transcribe_episode
 
 
@@ -36,6 +36,7 @@ def process_episode_worker(
     video_path_str: str,
     episode_id: str,
     episode_title: str,
+    num_workers: int = 1,
 ) -> EpisodeResult:
     """Process one episode through steps 1-4. Designed to run in a subprocess.
 
@@ -45,6 +46,9 @@ def process_episode_worker(
     start = time.monotonic()
     video_path = Path(video_path_str)
     scene_count = 0
+
+    # Configure API rate limiting based on total worker count
+    configure_rate_limit(num_workers)
 
     try:
         ep_state = load_episode_state(episode_id)

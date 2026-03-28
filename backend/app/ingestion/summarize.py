@@ -18,9 +18,10 @@ from app.core.config import settings
 
 MAX_RETRIES = 5
 BACKOFF_BASE = 3.0
-# Minimum seconds between API calls (shared across scenes within one worker).
-# With 3 workers, this means ~1 call/sec globally, staying under 50k tokens/min.
-API_CALL_INTERVAL = 3.0
+# Each summarize call sends ~5-10k tokens (3 images + text).
+# At 50k tokens/min limit, that's ~5-10 safe calls/min globally.
+# Base interval per worker; multiplied by worker count at runtime.
+_BASE_API_INTERVAL = 8.0
 RETRYABLE_ERRORS = (
     anthropic.RateLimitError,
     anthropic.APIStatusError,
@@ -28,8 +29,21 @@ RETRYABLE_ERRORS = (
     anthropic.APITimeoutError,
 )
 
-# Track last API call time per-process for rate limiting
+# Per-process rate limiting state (set by configure_rate_limit)
+_api_call_interval: float = _BASE_API_INTERVAL
 _last_api_call: float = 0.0
+
+
+def configure_rate_limit(num_workers: int) -> None:
+    """Set the API call interval based on total worker count.
+
+    Called once per worker process at startup. Adds random jitter
+    so workers don't all fire at the same instant.
+    """
+    global _api_call_interval, _last_api_call
+    _api_call_interval = _BASE_API_INTERVAL * num_workers
+    # Stagger initial calls across workers
+    _last_api_call = time.monotonic() - random.uniform(0, _api_call_interval)
 
 SYSTEM_PROMPT = """\
 You are an expert in child development and Augmentative and Alternative Communication (AAC). \
@@ -175,8 +189,8 @@ def summarize_scene(
     # Rate limit: wait if we called the API too recently
     global _last_api_call
     elapsed = time.monotonic() - _last_api_call
-    if elapsed < API_CALL_INTERVAL:
-        time.sleep(API_CALL_INTERVAL - elapsed)
+    if elapsed < _api_call_interval:
+        time.sleep(_api_call_interval - elapsed)
 
     for attempt in range(MAX_RETRIES):
         try:
