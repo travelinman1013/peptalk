@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import numpy as np
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
 
 from app.api.browse import invalidate_browse_cache, serialize_browse_clip
@@ -47,10 +47,11 @@ def unhide_clip(scene_id: str) -> dict:
 
 
 @router.get("/{scene_id}")
-def get_clip_metadata(scene_id: str) -> dict:
+def get_clip_metadata(scene_id: str, response: Response) -> dict:
     scene = search_engine.get_scene(scene_id)
     if scene is None:
         raise HTTPException(status_code=404, detail="Clip not found")
+    response.headers["Cache-Control"] = "public, max-age=86400"
     scene["clip_url"], scene["thumbnail_url"] = media_urls(scene_id)
     return scene
 
@@ -96,18 +97,23 @@ def stream_clip_video(scene_id: str, request: Request):
                 "Content-Range": f"bytes {range_start}-{range_end}/{file_size}",
                 "Accept-Ranges": "bytes",
                 "Content-Length": str(content_length),
+                "Cache-Control": "public, max-age=604800, immutable",
             },
         )
 
     return FileResponse(
         clip_path,
         media_type="video/mp4",
-        headers={"Accept-Ranges": "bytes"},
+        headers={
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "public, max-age=604800, immutable",
+        },
     )
 
 
 @router.get("/{scene_id}/suggestions")
-def get_clip_suggestions(scene_id: str) -> dict:
+def get_clip_suggestions(scene_id: str, response: Response) -> dict:
+    response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=3600"
     scene = search_engine.get_scene(scene_id)
     if scene is None:
         raise HTTPException(status_code=404, detail="Clip not found")
@@ -162,4 +168,8 @@ def get_clip_thumbnail(scene_id: str):
     if not thumbnail_path.exists():
         raise HTTPException(status_code=404, detail="Thumbnail not found")
 
-    return FileResponse(thumbnail_path, media_type="image/jpeg")
+    return FileResponse(
+        thumbnail_path,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=604800, immutable"},
+    )

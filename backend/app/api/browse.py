@@ -2,7 +2,7 @@
 
 from collections import Counter
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Response
 
 from app.core.search_engine import media_urls, search_engine
 
@@ -90,11 +90,13 @@ def serialize_browse_clip(scene: dict) -> dict:
 
 @router.get("/browse")
 def browse_categories(
+    response: Response,
     max_categories: int = 12,
     clips_per_category: int = 50,
     seasons: list[int] | None = Query(default=None),
     tags: list[str] | None = Query(default=None),
 ) -> dict:
+    response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=3600"
     if not search_engine.scenes:
         return {
             "categories": [],

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { BrowseClip, getThumbnailUrl } from "@/lib/api";
 import { getClipTitle, getClipSubtitle, getClipLabel } from "@/lib/clip-labels";
 import { useQueue } from "@/lib/queue-context";
@@ -82,6 +82,7 @@ function ClipCard({ clip, onPreview }: { clip: BrowseClip; onPreview: (clip: Bro
 
 export function ClipStrip({ name, count, clips, isExpanded, onExpand, onCollapse, onPreview }: ClipStripProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
 
@@ -100,8 +101,40 @@ export function ClipStrip({ name, count, clips, isExpanded, onExpand, onCollapse
     return () => el.removeEventListener("scroll", checkScroll);
   }, [checkScroll, clips]);
 
+  // Preload thumbnails ahead of viewport
+  const thumbnailUrls = useMemo(
+    () => new Map(clips.map((c) => [c.scene_id, getThumbnailUrl(c.scene_id)])),
+    [clips]
+  );
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const url = (entry.target as HTMLElement).dataset.thumbnailUrl;
+            if (url) {
+              const img = new Image();
+              img.src = url;
+            }
+            observer.unobserve(entry.target);
+          }
+        }
+      },
+      { rootMargin: "200px 400px 200px 400px" }
+    );
+
+    const items = container.querySelectorAll("[data-thumbnail-url]");
+    items.forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, [clips, isExpanded]);
+
   return (
-    <div className="space-y-2">
+    <div ref={containerRef} className="space-y-2">
       {/* Header */}
       <div className="flex items-center justify-between px-1">
         <h2 className="flex items-center gap-2 text-sm font-bold tracking-tight font-heading">
@@ -138,7 +171,9 @@ export function ClipStrip({ name, count, clips, isExpanded, onExpand, onCollapse
         /* Expanded grid */
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 animate-[fade-in_0.3s_ease-out]">
           {clips.map((clip) => (
-            <ClipCard key={clip.scene_id} clip={clip} onPreview={onPreview} />
+            <div key={clip.scene_id} data-thumbnail-url={thumbnailUrls.get(clip.scene_id)}>
+              <ClipCard clip={clip} onPreview={onPreview} />
+            </div>
           ))}
         </div>
       ) : (
@@ -158,6 +193,7 @@ export function ClipStrip({ name, count, clips, isExpanded, onExpand, onCollapse
                 key={clip.scene_id}
                 className="flex-none snap-start"
                 style={{ width: "156px" }}
+                data-thumbnail-url={thumbnailUrls.get(clip.scene_id)}
               >
                 <ClipCard clip={clip} onPreview={onPreview} />
               </div>
