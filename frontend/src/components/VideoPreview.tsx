@@ -108,9 +108,11 @@ export function VideoPreview({ clip, isFavorited, isHidden, onToggleFavorite, on
             src={getVideoUrl(clip.scene_id)}
             className="w-full rounded-2xl ring-1 ring-white/5"
             controls
-            muted
             playsInline
             autoPlay
+            onLoadedMetadata={() => {
+              if (videoRef.current) videoRef.current.volume = 0.3;
+            }}
             aria-label={`Preview of: ${label}`}
           />
 
