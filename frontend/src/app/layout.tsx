@@ -18,10 +18,34 @@ export const metadata: Metadata = {
   title: "PepTalk",
   description: "Communicate with Julian using Peppa Pig clips",
   manifest: "/manifest.json",
+  openGraph: {
+    title: "PepTalk",
+    description: "Communicate with Julian using Peppa Pig clips",
+    url: "https://peppatalk.com",
+    siteName: "PepTalk",
+    images: [
+      {
+        url: "https://peppatalk.com/icons/icon-512.png",
+        width: 512,
+        height: 512,
+        alt: "PepTalk logo",
+      },
+    ],
+    type: "website",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "PepTalk",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
   },
 };
 
@@ -30,7 +54,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#d4736c",
+  themeColor: "#4FC3F7",
 };
 
 export default function RootLayout({
