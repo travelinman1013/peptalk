@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     # API
     anthropic_api_key: str = ""
     cors_origins: list[str] = ["http://localhost:3000"]
+    media_base_url: str = ""  # e.g. "https://media.peppatalk.com"
 
     # Ingestion
     whisper_model: str = "large-v3"

@@ -8,7 +8,8 @@
     "dev:backend": "cd backend && uv run uvicorn app.main:app --reload --port 8000",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "ingest": "cd backend && uv run python scripts/ingest.py",
-    "tunnel": "ngrok start --all --config \"$HOME/Library/Application Support/ngrok/ngrok.yml\" --config ngrok.yml"
+    "tunnel": "ngrok start --all --config \"$HOME/Library/Application Support/ngrok/ngrok.yml\" --config ngrok.yml",
+    "deploy": "cd frontend && NEXT_PUBLIC_API_URL=https://api.peppatalk.com NEXT_PUBLIC_MEDIA_URL=https://media.peppatalk.com npm run build && wrangler pages deploy out --project-name peptalk --branch main"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

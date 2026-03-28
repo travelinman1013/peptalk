@@ -1,4 +1,5 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const MEDIA_BASE = process.env.NEXT_PUBLIC_MEDIA_URL || "";
 
 export interface ClipResult {
   scene_id: string;
@@ -128,10 +129,12 @@ export async function getClipSuggestions(
 }
 
 export function getVideoUrl(sceneId: string): string {
+  if (MEDIA_BASE) return `${MEDIA_BASE}/clips/${sceneId}.mp4`;
   return `${API_BASE}/clips/${sceneId}/video`;
 }
 
 export function getThumbnailUrl(sceneId: string): string {
+  if (MEDIA_BASE) return `${MEDIA_BASE}/thumbnails/${sceneId}.jpg`;
   return `${API_BASE}/clips/${sceneId}/thumbnail`;
 }
 

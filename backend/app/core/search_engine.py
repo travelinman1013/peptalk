@@ -7,6 +7,14 @@ from sentence_transformers import SentenceTransformer
 from app.core.config import settings
 
 
+def media_urls(scene_id: str) -> tuple[str, str]:
+    """Return (clip_url, thumbnail_url) — R2 URLs in prod, relative in dev."""
+    if settings.media_base_url:
+        base = settings.media_base_url.rstrip("/")
+        return f"{base}/clips/{scene_id}.mp4", f"{base}/thumbnails/{scene_id}.jpg"
+    return f"/clips/{scene_id}/video", f"/clips/{scene_id}/thumbnail"
+
+
 class SearchEngine:
     def __init__(self) -> None:
         self.scenes: list[dict] = []
@@ -72,8 +80,7 @@ class SearchEngine:
                 continue
             entry = scene.copy()
             entry["score"] = float(combined[idx])
-            entry["clip_url"] = f"/clips/{scene['scene_id']}/video"
-            entry["thumbnail_url"] = f"/clips/{scene['scene_id']}/thumbnail"
+            entry["clip_url"], entry["thumbnail_url"] = media_urls(scene["scene_id"])
             entry.pop("embedding", None)
             results.append(entry)
             if len(results) >= top_k:

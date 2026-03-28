@@ -4,7 +4,7 @@ from collections import Counter
 
 from fastapi import APIRouter, Query
 
-from app.core.search_engine import search_engine
+from app.core.search_engine import media_urls, search_engine
 
 router = APIRouter()
 
@@ -59,11 +59,12 @@ def _season_from_episode_id(episode_id: str) -> int:
 
 def serialize_browse_clip(scene: dict) -> dict:
     """Shared clip serialization used by browse and clips endpoints."""
+    clip_url, thumbnail_url = media_urls(scene["scene_id"])
     return {
         "scene_id": scene["scene_id"],
         "episode_id": scene.get("episode_id", ""),
-        "thumbnail_url": f"/clips/{scene['scene_id']}/thumbnail",
-        "clip_url": f"/clips/{scene['scene_id']}/video",
+        "thumbnail_url": thumbnail_url,
+        "clip_url": clip_url,
         "label": (scene.get("parent_trigger_phrases") or [""])[0],
         "duration": scene.get("duration", 0),
         "emotional_tone": scene.get("emotional_tone", ""),

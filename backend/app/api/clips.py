@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 
 from app.api.browse import serialize_browse_clip
 from app.core.config import settings
-from app.core.search_engine import search_engine
+from app.core.search_engine import media_urls, search_engine
 
 router = APIRouter(prefix="/clips")
 
@@ -49,6 +49,7 @@ def get_clip_metadata(scene_id: str) -> dict:
     scene = search_engine.get_scene(scene_id)
     if scene is None:
         raise HTTPException(status_code=404, detail="Clip not found")
+    scene["clip_url"], scene["thumbnail_url"] = media_urls(scene_id)
     return scene
 
 
@@ -124,8 +125,7 @@ def get_clip_suggestions(scene_id: str) -> dict:
     for s in same_episode[:2]:
         clip = s.copy()
         clip.pop("embedding", None)
-        clip["clip_url"] = f"/clips/{clip['scene_id']}/video"
-        clip["thumbnail_url"] = f"/clips/{clip['scene_id']}/thumbnail"
+        clip["clip_url"], clip["thumbnail_url"] = media_urls(clip["scene_id"])
         next_in_episode.append(clip)
 
     # Related clips from different episodes (by embedding similarity)
@@ -143,8 +143,7 @@ def get_clip_suggestions(scene_id: str) -> dict:
                 continue
             clip = candidate.copy()
             clip.pop("embedding", None)
-            clip["clip_url"] = f"/clips/{clip['scene_id']}/video"
-            clip["thumbnail_url"] = f"/clips/{clip['scene_id']}/thumbnail"
+            clip["clip_url"], clip["thumbnail_url"] = media_urls(clip["scene_id"])
             clip["score"] = float(scores[i])
             related.append(clip)
             if len(related) >= 2:
