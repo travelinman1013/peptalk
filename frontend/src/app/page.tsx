@@ -278,7 +278,7 @@ export default function Home() {
                 </>
               ) : categories.length > 0 ? (
                 <div className={`space-y-8 transition-opacity ${browseFetching && !browseLoading ? "opacity-60" : ""}`}>
-                  {categories.map((cat) => (
+                  {categories.filter((cat) => selectedTags.length === 0 || selectedTags.includes(cat.tag)).map((cat) => (
                     <ClipStrip
                       key={cat.tag}
                       name={cat.name}
