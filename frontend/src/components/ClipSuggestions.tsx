@@ -121,7 +121,7 @@ function SuggestionCard({
           src={getThumbnailUrl(clip.scene_id)}
           alt={getClipTitle(clip)}
           className="h-full w-full object-cover"
-          loading="lazy"
+          decoding="async"
         />
         <span className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 text-[9px] font-medium text-white">
           {Math.round(clip.duration)}s

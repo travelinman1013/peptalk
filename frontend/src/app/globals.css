@@ -144,6 +144,12 @@ body {
   animation: help-pulse 2s ease-in-out infinite;
 }
 
+/* Skip rendering for offscreen category strips */
+.clip-strip {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 280px;
+}
+
 /* Hide scrollbar on horizontal strips */
 .scrollbar-none {
   -ms-overflow-style: none;

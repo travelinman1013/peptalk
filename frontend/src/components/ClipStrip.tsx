@@ -34,7 +34,7 @@ function ClipCard({ clip, onPreview }: { clip: BrowseClip; onPreview: (clip: Bro
           src={getThumbnailUrl(clip.scene_id)}
           alt={getClipLabel(clip, 60)}
           className="h-full w-full object-cover"
-          loading="lazy"
+          decoding="async"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/5 to-transparent" />
         <span className="absolute bottom-1 right-1 rounded-md bg-black/75 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white backdrop-blur-sm">
@@ -134,7 +134,7 @@ export function ClipStrip({ name, count, clips, isExpanded, onExpand, onCollapse
   }, [clips, isExpanded]);
 
   return (
-    <div ref={containerRef} className="space-y-2">
+    <div ref={containerRef} className="clip-strip space-y-2">
       {/* Header */}
       <div className="flex items-center justify-between px-1">
         <h2 className="flex items-center gap-2 text-sm font-bold tracking-tight font-heading">
@@ -188,7 +188,7 @@ export function ClipStrip({ name, count, clips, isExpanded, onExpand, onCollapse
             ref={scrollRef}
             className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none"
           >
-            {clips.map((clip) => (
+            {clips.slice(0, 20).map((clip) => (
               <div
                 key={clip.scene_id}
                 className="flex-none snap-start"

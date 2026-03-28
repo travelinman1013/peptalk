@@ -30,7 +30,7 @@ export function ClipCard({ clip, onPreview }: ClipCardProps) {
           src={getThumbnailUrl(clip.scene_id)}
           alt={label}
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          loading="lazy"
+          decoding="async"
         />
         {/* Gradient overlay for text legibility */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
