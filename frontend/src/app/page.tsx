@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { searchClips, browseCategories, ClipResult, BrowseClip } from "@/lib/api";
 import { SearchBar } from "@/components/SearchBar";
 import { ClipGrid } from "@/components/ClipGrid";
@@ -19,6 +19,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { HelpMenu } from "@/components/HelpMenu";
 import { HiddenClipsSheet } from "@/components/HiddenClipsSheet";
 import { ClipSuggestions } from "@/components/ClipSuggestions";
+import { BrowseFilters } from "@/components/BrowseFilters";
 import { useHidden } from "@/lib/hooks/use-hidden";
 
 export default function Home() {
@@ -26,6 +27,8 @@ export default function Home() {
   const [previewClip, setPreviewClip] = useState<ClipResult | BrowseClip | null>(null);
   const [julianClips, setJulianClips] = useState<(ClipResult | BrowseClip)[]>([]);
   const [showHiddenSheet, setShowHiddenSheet] = useState(false);
+  const [selectedSeasons, setSelectedSeasons] = useState<number[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   // Persistence hooks
   const { favorites, favoriteIds, toggleFavorite } = useFavorites();
@@ -41,14 +44,24 @@ export default function Home() {
     enabled: query.length > 0,
   });
 
-  // Browse categories (load on mount)
-  const { data: browseData, isLoading: browseLoading, isError: browseError, refetch: refetchBrowse } = useQuery({
-    queryKey: ["browse"],
-    queryFn: () => browseCategories(12),
+  // Browse categories (load on mount, filtered)
+  const { data: browseData, isLoading: browseLoading, isError: browseError, isFetching: browseFetching, refetch: refetchBrowse } = useQuery({
+    queryKey: ["browse", {
+      seasons: [...selectedSeasons].sort(),
+      tags: [...selectedTags].sort(),
+    }],
+    queryFn: () => browseCategories({
+      seasons: selectedSeasons.length > 0 ? selectedSeasons : undefined,
+      tags: selectedTags.length > 0 ? selectedTags : undefined,
+    }),
+    placeholderData: keepPreviousData,
   });
 
   const searchResults = searchData?.groups?.[0]?.results ?? [];
   const categories = browseData?.categories ?? [];
+  const availableSeasons = browseData?.available_seasons ?? [];
+  const availableTags = browseData?.available_tags ?? [];
+  const hasFilters = selectedSeasons.length > 0 || selectedTags.length > 0;
 
   const handleSearch = useCallback((q: string) => {
     setQuery(q);
@@ -176,8 +189,18 @@ export default function Home() {
           ) : (
             /* Category browse */
             <div className="animate-content-enter space-y-8">
+              {/* Filters */}
+              <BrowseFilters
+                availableSeasons={availableSeasons}
+                availableTags={availableTags}
+                selectedSeasons={selectedSeasons}
+                selectedTags={selectedTags}
+                onSeasonsChange={setSelectedSeasons}
+                onTagsChange={setSelectedTags}
+              />
+
               {/* Recently Used */}
-              {recentClips.length > 0 && (
+              {recentClips.length > 0 && !hasFilters && (
                 <ClipStrip
                   name="Recently Used"
                   tag="_recent"
@@ -189,7 +212,7 @@ export default function Home() {
               )}
 
               {/* Saved Playlists */}
-              {playlists.length > 0 && (
+              {playlists.length > 0 && !hasFilters && (
                 <PlaylistStrip
                   playlists={playlists}
                   onPlay={handlePlayPlaylist}
@@ -198,7 +221,7 @@ export default function Home() {
               )}
 
               {/* Favorites */}
-              {favorites.length > 0 && (
+              {favorites.length > 0 && !hasFilters && (
                 <ClipStrip
                   name="Favorites"
                   tag="_favorites"
@@ -227,17 +250,31 @@ export default function Home() {
                   <SkeletonStrip />
                 </>
               ) : categories.length > 0 ? (
-                categories.map((cat) => (
-                  <ClipStrip
-                    key={cat.tag}
-                    name={cat.name}
-                    tag={cat.tag}
-                    count={cat.count}
-                    clips={cat.clips}
-                    onPreview={handlePreview}
-                    onShowJulian={handleShowJulian}
-                  />
-                ))
+                <div className={`space-y-8 transition-opacity ${browseFetching && !browseLoading ? "opacity-60" : ""}`}>
+                  {categories.map((cat) => (
+                    <ClipStrip
+                      key={cat.tag}
+                      name={cat.name}
+                      tag={cat.tag}
+                      count={cat.count}
+                      clips={cat.clips}
+                      onPreview={handlePreview}
+                      onShowJulian={handleShowJulian}
+                    />
+                  ))}
+                </div>
+              ) : hasFilters ? (
+                <div className="py-16 flex flex-col items-center gap-3 text-center">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    No clips match these filters
+                  </p>
+                  <button
+                    onClick={() => { setSelectedSeasons([]); setSelectedTags([]); }}
+                    className="rounded-xl bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
+                  >
+                    Clear filters
+                  </button>
+                </div>
               ) : (
                 // Only show empty state if there are no personal strips either
                 recentClips.length === 0 &&

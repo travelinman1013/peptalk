@@ -62,9 +62,18 @@ export interface BrowseCategory {
   clips: BrowseClip[];
 }
 
+export interface AvailableTag {
+  tag: string;
+  label: string;
+  count: number;
+}
+
 export interface BrowseResponse {
   categories: BrowseCategory[];
-  all_clips_count: number;
+  filtered_clips_count: number;
+  total_clips_count: number;
+  available_seasons: number[];
+  available_tags: AvailableTag[];
 }
 
 export async function searchClips(
@@ -77,10 +86,21 @@ export async function searchClips(
   return res.json();
 }
 
-export async function browseCategories(
-  maxCategories: number = 12
-): Promise<BrowseResponse> {
-  const params = new URLSearchParams({ max_categories: String(maxCategories) });
+export async function browseCategories(opts?: {
+  maxCategories?: number;
+  seasons?: number[];
+  tags?: string[];
+  clipsPerCategory?: number;
+}): Promise<BrowseResponse> {
+  const params = new URLSearchParams();
+  params.set("max_categories", String(opts?.maxCategories ?? 12));
+  if (opts?.clipsPerCategory) params.set("clips_per_category", String(opts.clipsPerCategory));
+  if (opts?.seasons) {
+    for (const s of opts.seasons) params.append("seasons", String(s));
+  }
+  if (opts?.tags) {
+    for (const t of opts.tags) params.append("tags", t);
+  }
   const res = await fetch(`${API_BASE}/browse?${params}`);
   if (!res.ok) throw new Error(`Browse failed: ${res.status}`);
   return res.json();

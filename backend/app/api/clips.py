@@ -4,6 +4,7 @@ import numpy as np
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 
+from app.api.browse import serialize_browse_clip
 from app.core.config import settings
 from app.core.search_engine import search_engine
 
@@ -17,24 +18,7 @@ router = APIRouter(prefix="/clips")
 def get_hidden_clips() -> dict:
     clips = search_engine.get_hidden_scenes()
     return {
-        "clips": [
-            {
-                "scene_id": s["scene_id"],
-                "episode_id": s.get("episode_id", ""),
-                "thumbnail_url": f"/clips/{s['scene_id']}/thumbnail",
-                "clip_url": f"/clips/{s['scene_id']}/video",
-                "label": (s.get("parent_trigger_phrases") or [""])[0],
-                "duration": s.get("duration", 0),
-                "emotional_tone": s.get("emotional_tone", ""),
-                "energy_level": s.get("energy_level", ""),
-                "narrative_summary": s.get("narrative_summary", ""),
-                "characters_present": s.get("characters_present", []),
-                "key_dialogue": s.get("key_dialogue", []),
-                "child_situations": s.get("child_situations", []),
-                "parent_trigger_phrases": s.get("parent_trigger_phrases", []),
-            }
-            for s in clips
-        ],
+        "clips": [serialize_browse_clip(s) for s in clips],
         "count": len(clips),
     }
 
