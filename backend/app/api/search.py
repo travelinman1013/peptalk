@@ -8,7 +8,7 @@ router = APIRouter()
 @router.get("/search")
 def search_clips(
     q: str = Query(..., description="Search query — what you want to communicate"),
-    top_k: int = Query(5, ge=1, le=20, description="Number of results to return"),
+    top_k: int = Query(5, ge=1, le=60, description="Number of results to return"),
 ) -> dict:
     results = search_engine.search(q, top_k=top_k)
 

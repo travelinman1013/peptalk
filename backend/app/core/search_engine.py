@@ -60,7 +60,9 @@ class SearchEngine:
         )
 
         # Oversample to account for hidden clips being filtered out
-        fetch_k = min(top_k * 3, len(self.scenes))
+        hidden_ratio = len(self.hidden_ids) / len(self.scenes) if self.scenes else 0
+        safety = max(1.5, 1.0 / (1.0 - hidden_ratio)) if hidden_ratio < 1.0 else len(self.scenes)
+        fetch_k = min(int(top_k * safety) + 10, len(self.scenes))
         top_indices = np.argsort(combined)[-fetch_k:][::-1]
 
         results = []

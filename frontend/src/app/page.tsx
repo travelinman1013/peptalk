@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { Loader2, ChevronDown } from "lucide-react";
 import { searchClips, browseCategories, ClipResult, BrowseClip } from "@/lib/api";
 import { SearchBar } from "@/components/SearchBar";
 import { ClipGrid } from "@/components/ClipGrid";
@@ -29,6 +30,7 @@ export default function Home() {
   const [showHiddenSheet, setShowHiddenSheet] = useState(false);
   const [selectedSeasons, setSelectedSeasons] = useState<number[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [searchTopK, setSearchTopK] = useState(12);
 
   // Persistence hooks
   const { favorites, favoriteIds, toggleFavorite } = useFavorites();
@@ -38,10 +40,11 @@ export default function Home() {
   const { hiddenCount, hideClip, isHidden } = useHidden();
 
   // Search results
-  const { data: searchData, isLoading: searchLoading, isError: searchError, refetch: refetchSearch } = useQuery({
-    queryKey: ["search", query],
-    queryFn: () => searchClips(query),
+  const { data: searchData, isLoading: searchLoading, isError: searchError, isFetching: searchFetching, refetch: refetchSearch } = useQuery({
+    queryKey: ["search", query, searchTopK],
+    queryFn: () => searchClips(query, searchTopK),
     enabled: query.length > 0,
+    placeholderData: keepPreviousData,
   });
 
   // Browse categories (load on mount, filtered)
@@ -65,6 +68,7 @@ export default function Home() {
 
   const handleSearch = useCallback((q: string) => {
     setQuery(q);
+    setSearchTopK(12);
   }, []);
 
   const handlePreview = useCallback((clip: ClipResult | BrowseClip) => {
@@ -113,6 +117,8 @@ export default function Home() {
     }
   }, [clearQueue]);
 
+  const isLoadingMore = searchFetching && !searchLoading;
+  const canShowMore = isLoadingMore || (searchResults.length >= searchTopK && searchTopK < 60);
   const isSearching = query.length > 0;
   const isPlaying = julianClips.length > 0;
 
@@ -179,11 +185,32 @@ export default function Home() {
               ) : searchLoading ? (
                 <SkeletonGrid />
               ) : (
-                <ClipGrid
-                  clips={searchResults}
-                  onPreview={handlePreview}
-                  onShowJulian={handleShowJulian}
-                />
+                <>
+                  <ClipGrid
+                    clips={searchResults}
+                    onPreview={handlePreview}
+                    onShowJulian={handleShowJulian}
+                  />
+                  {canShowMore && (
+                    <button
+                      onClick={() => setSearchTopK(prev => Math.min(prev + 12, 60))}
+                      disabled={searchFetching}
+                      className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-muted font-semibold text-sm text-foreground transition-colors hover:bg-muted/80 disabled:opacity-60"
+                    >
+                      {searchFetching ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="h-4 w-4" />
+                          Show more
+                        </>
+                      )}
+                    </button>
+                  )}
+                </>
               )}
             </div>
           ) : (
