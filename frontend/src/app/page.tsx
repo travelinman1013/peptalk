@@ -31,6 +31,7 @@ export default function Home() {
   const [selectedSeasons, setSelectedSeasons] = useState<number[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [searchTopK, setSearchTopK] = useState(12);
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
   // Persistence hooks
   const { favorites, favoriteIds, toggleFavorite } = useFavorites();
@@ -233,6 +234,9 @@ export default function Home() {
                   tag="_recent"
                   count={recentClips.length}
                   clips={recentClips}
+                  isExpanded={expandedSection === "_recent"}
+                  onExpand={() => setExpandedSection("_recent")}
+                  onCollapse={() => setExpandedSection(null)}
                   onPreview={handlePreview}
                   onShowJulian={handleShowJulian}
                 />
@@ -254,6 +258,9 @@ export default function Home() {
                   tag="_favorites"
                   count={favorites.length}
                   clips={favorites}
+                  isExpanded={expandedSection === "_favorites"}
+                  onExpand={() => setExpandedSection("_favorites")}
+                  onCollapse={() => setExpandedSection(null)}
                   onPreview={handlePreview}
                   onShowJulian={handleShowJulian}
                 />
@@ -285,6 +292,9 @@ export default function Home() {
                       tag={cat.tag}
                       count={cat.count}
                       clips={cat.clips}
+                      isExpanded={expandedSection === cat.tag}
+                      onExpand={() => setExpandedSection(cat.tag)}
+                      onCollapse={() => setExpandedSection(null)}
                       onPreview={handlePreview}
                       onShowJulian={handleShowJulian}
                     />
