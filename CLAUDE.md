@@ -13,15 +13,15 @@ PepTalk is deployed at **https://peppatalk.com** using three Cloudflare services
 | Service | URL | Hosted On |
 |---------|-----|-----------|
 | Frontend | `peppatalk.com` | Cloudflare Pages (static Next.js export) |
-| API | `api.peppatalk.com` | Mac Studio via Cloudflare Tunnel → `localhost:8000` |
+| API | `api.peppatalk.com` | Mac Studio via Cloudflare Tunnel → `localhost:8111` |
 | Media | `media.peppatalk.com` | Cloudflare R2 (clips + thumbnails) |
 
 ### Services That Must Be Running
 
 Two services run as **macOS Launch Agents** (auto-start on login):
 
-1. **Cloudflare Tunnel** (`com.cloudflare.cloudflared`) — routes `api.peppatalk.com` to `localhost:8000`
-2. **PepTalk Backend** (`com.peptalk.backend`) — FastAPI + search engine on port 8000
+1. **Cloudflare Tunnel** (`com.cloudflare.cloudflared`) — routes `api.peppatalk.com` to `localhost:8111`
+2. **PepTalk Backend** (`com.peptalk.backend`) — FastAPI + search engine on port 8111
 
 ```bash
 # Check service status
@@ -76,8 +76,8 @@ rclone sync backend/data/thumbnails/ r2:peptalk-media/thumbnails/ --transfers 16
 # Run both servers (backend + frontend) for local dev
 npm run dev
 
-# Backend only (FastAPI on :8000)
-cd backend && uv run uvicorn app.main:app --reload --port 8000
+# Backend only (FastAPI on :8111)
+cd backend && uv run uvicorn app.main:app --reload --port 8111
 
 # Frontend only (Next.js on :3000)
 cd frontend && npm run dev

@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8111";
 const MEDIA_BASE = process.env.NEXT_PUBLIC_MEDIA_URL || "";
 
 export interface ClipResult {
