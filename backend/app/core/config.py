@@ -16,7 +16,7 @@ class Settings(BaseSettings):
 
     # API
     anthropic_api_key: str = ""
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = ["http://localhost:3000", "https://peppatalk.com", "https://www.peppatalk.com"]
     media_base_url: str = ""  # e.g. "https://media.peppatalk.com"
 
     # Ingestion
