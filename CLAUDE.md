@@ -19,9 +19,30 @@ PepTalk is deployed at **https://peppatalk.com** using three Cloudflare services
 ### Services That Must Be Running
 
 > **Moved off the Mac Studio on 2026-08-01.** The API now runs permanently on `linuxbook`
-> (Linux Mint, `ssh linuxbook`). The old macOS Launch Agents are stopped **and
-> `launchctl disable`d** — do not re-enable them: two connectors on the same tunnel
-> load-balance, which would split `hidden.json` writes across two hosts.
+> (Linux Mint, `ssh linuxbook`). Do not re-enable the old macOS Launch Agents: two
+> connectors on the same tunnel load-balance, which would split `hidden.json` writes
+> across two hosts.
+>
+> They are held off by **two independent mechanisms**, both on the Mac:
+> 1. `launchctl disable gui/$UID/com.peptalk.backend` (and `…cloudflare.cloudflared`) —
+>    recorded in `/var/db/com.apple.xpc.launchd/disabled.$UID.plist`, survives reboot.
+>    Verified: an explicit `launchctl bootstrap` of the plist fails while this is set.
+> 2. The plists are renamed `com.peptalk.backend.plist.disabled` and
+>    `com.cloudflare.cloudflared.plist.disabled` in `~/Library/LaunchAgents/`, matching
+>    the existing `com.jellyfin.server.plist.disabled` convention on that machine.
+>
+> **To roll back to the Mac** (both steps are required):
+> ```bash
+> cd ~/Library/LaunchAgents
+> mv com.peptalk.backend.plist.disabled com.peptalk.backend.plist
+> mv com.cloudflare.cloudflared.plist.disabled com.cloudflare.cloudflared.plist
+> launchctl enable gui/$(id -u)/com.peptalk.backend
+> launchctl enable gui/$(id -u)/com.cloudflare.cloudflared
+> launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.peptalk.backend.plist
+> launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.cloudflare.cloudflared.plist
+> ```
+> Stop the linuxbook units **first** (`ssh linuxbook 'sudo systemctl stop cloudflared peptalk'`)
+> and copy `/var/lib/peptalk/db/hidden.json` back, or hide-state accrued on Linux is lost.
 
 Two **systemd** services on `linuxbook`:
 
