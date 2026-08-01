@@ -13,35 +13,72 @@ PepTalk is deployed at **https://peppatalk.com** using three Cloudflare services
 | Service | URL | Hosted On |
 |---------|-----|-----------|
 | Frontend | `peppatalk.com` | Cloudflare Pages (static Next.js export) |
-| API | `api.peppatalk.com` | Mac Studio via Cloudflare Tunnel → `localhost:8111` |
+| API | `api.peppatalk.com` | **`linuxbook`** via Cloudflare Tunnel → `127.0.0.1:8111` |
 | Media | `media.peppatalk.com` | Cloudflare R2 (clips + thumbnails) |
 
 ### Services That Must Be Running
 
-Two services run as **macOS Launch Agents** (auto-start on login):
+> **Moved off the Mac Studio on 2026-08-01.** The API now runs permanently on `linuxbook`
+> (Linux Mint, `ssh linuxbook`). The old macOS Launch Agents are stopped **and
+> `launchctl disable`d** — do not re-enable them: two connectors on the same tunnel
+> load-balance, which would split `hidden.json` writes across two hosts.
 
-1. **Cloudflare Tunnel** (`com.cloudflare.cloudflared`) — routes `api.peppatalk.com` to `localhost:8111`
-2. **PepTalk Backend** (`com.peptalk.backend`) — FastAPI + search engine on port 8111
+Two **systemd** services on `linuxbook`:
+
+1. **`cloudflared`** — routes `api.peppatalk.com` to `127.0.0.1:8111` (tunnel `858bfa6c-…`,
+   same UUID as before, so no DNS ever changed)
+2. **`peptalk`** — FastAPI + search engine, loopback only. Blocks activation until `/health`
+   answers (~18s cold), so the tunnel never registers ahead of a ready backend.
 
 ```bash
-# Check service status
-launchctl list | grep -E "cloudflare|peptalk"
+# Status and logs
+ssh linuxbook 'systemctl status peptalk cloudflared'
+ssh linuxbook 'sudo journalctl -u peptalk -f'
+ssh linuxbook 'curl -s localhost:20241/ready'      # tunnel connector readiness
 
-# Restart backend
-launchctl kickstart -k gui/$(id -u)/com.peptalk.backend
-
-# Restart tunnel
-launchctl kickstart -k gui/$(id -u)/com.cloudflare.cloudflared
-
-# View backend logs
-tail -f ~/Library/Logs/peptalk-backend.log
-tail -f ~/Library/Logs/peptalk-backend.err.log
-
-# View tunnel logs
-tail -f ~/Library/Logs/com.cloudflare.cloudflared.err.log
+# Restart
+ssh linuxbook 'sudo systemctl restart peptalk'
 ```
 
-If the Mac Studio is off or these services are not running, the API will be unreachable and the app will show loading skeletons but no data.
+Layout on `linuxbook`: code `/opt/peptalk/repo` (shallow clone, read-only to the service),
+venv `/opt/peptalk/venv`, config `/etc/peptalk/peptalk.env`, **live data
+`/var/lib/peptalk/db`** (via `PEPTALK_DB_DIR` — deliberately outside the checkout so
+runtime writes to `hidden.json` can never conflict with `git pull`). Runs as a dedicated
+`peptalk` system user.
+
+**Ingestion still runs here on the Mac Studio** — Haswell is far too slow for whisper
+`large-v3`, and `data/episodes/` never moved. Only *serving* relocated. See "Publishing a
+new index" below.
+
+If `linuxbook` is off or these services are down, the API is unreachable and the app shows
+loading skeletons but no data.
+
+### Publishing a new index (after an ingest on this Mac)
+
+Order matters — if the index lands before the clips, every new scene returns an R2 URL
+that 404s.
+
+```bash
+# 1. MEDIA FIRST
+rclone sync backend/data/clips/      r2:peptalk-media/clips/
+rclone sync backend/data/thumbnails/ r2:peptalk-media/thumbnails/
+rclone check backend/data/clips/ r2:peptalk-media/clips/ --size-only   # expect 0 differences
+
+# 2. INDEX SECOND  (never `git add` hidden.json from the Mac again — linuxbook owns it)
+git add backend/data/db/scenes.json backend/data/db/embeddings.npz && git commit && git push
+
+# 3. Swap it in on linuxbook (stages, validates, snapshots, atomic swap, canary)
+ssh linuxbook 'sudo /usr/local/sbin/peptalk-deploy'
+```
+
+The deploy script refuses the swap if `scenes.json` and `embeddings.npz` row counts
+disagree (that would `IndexError` on every query) or if a hidden `scene_id` vanished
+(a re-chunk would silently un-hide deliberately hidden clips).
+
+**Canary baseline** — these scores must reproduce to ~6 decimals:
+`s01e44_01886 0.549944` / `s03e26_01569 0.539002` / `s02e18_02622 0.526294`.
+Drift means the embedding stacks on the two hosts diverged; versions are pinned on both
+sides to prevent it.
 
 ### Deploy Frontend Changes
 
